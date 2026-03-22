@@ -15,7 +15,6 @@ import {
   Subtitles, 
   ChevronDown,
   ChevronUp,
-  Bot,
   Eye,
   Volume2,
   FileText,
@@ -48,7 +47,17 @@ import {
   Link,
   MessageSquare,
   Instagram,
-  Mail
+  Mail,
+  Grid,
+  ArrowRight,
+  Check,
+  Edit2,
+  RefreshCw,
+  AlertCircle,
+  Type,
+  Video,
+  Play,
+  Pause
 } from 'lucide-react';
 
 export default function App() {
@@ -63,6 +72,34 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [showAIPopup, setShowAIPopup] = useState(false);
+  const [reviewResult, setReviewResult] = useState<'safe' | 'risk' | null>(null);
+  const [showRiskPopup, setShowRiskPopup] = useState(false);
+  const [fixStep, setFixStep] = useState(1);
+  const [isAllFixed, setIsAllFixed] = useState(false);
+  const [showPublishWarning, setShowPublishWarning] = useState(false);
+  const [showMusicSelector, setShowMusicSelector] = useState(false);
+  const [contentType, setContentType] = useState<'single' | 'multi' | 'video' | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const handleThumbnailClick = (index: number) => {
+    setCurrentImageIndex(index);
+    if (scrollContainerRef.current) {
+      const width = scrollContainerRef.current.clientWidth;
+      scrollContainerRef.current.scrollTo({
+        left: width * index,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const multiImages = [
+    "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=1000&auto=format&fit=crop"
+  ];
 
   const tools = [
     { id: 'edit', icon: <MonitorPlay size={26} strokeWidth={1.5} />, label: '编辑' },
@@ -106,15 +143,21 @@ export default function App() {
           setReviewProgress(0);
         }, 4000);
       } else {
-        setShowSuccessCelebration(true);
-        setTimeout(() => {
-          setShowSuccessCelebration(false);
+        if (reviewResult === 'safe') {
+          setShowSuccessCelebration(true);
+          setTimeout(() => {
+            setShowSuccessCelebration(false);
+            setShowReviewUI(false);
+            setReviewProgress(0);
+          }, 3500);
+        } else {
           setShowReviewUI(false);
+          setShowRiskPopup(true);
           setReviewProgress(0);
-        }, 3500);
+        }
       }
     }
-  }, [reviewProgress, isReviewing, currentView]);
+  }, [reviewProgress, isReviewing, currentView, reviewResult]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -143,6 +186,7 @@ export default function App() {
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
+    setReviewResult(Math.random() > 0.5 ? 'safe' : 'risk');
   };
 
   const handleBack = () => {
@@ -152,7 +196,16 @@ export default function App() {
   const timeLeft = Math.ceil(6 * (1 - reviewProgress / 100));
 
   let currentStepText = "准备中...";
-  let currentStepIcon = <Bot size={20} />;
+  let currentStepIcon = (
+    <div className="flex items-center justify-center gap-[3px] h-[20px]">
+      <div className="w-[11px] h-[11px] rounded-full bg-[#20D5EC] flex items-center justify-center shadow-[0_0_6px_rgba(32,213,236,0.8)]">
+        <div className="w-[5px] h-[5px] rounded-full bg-[#333333]"></div>
+      </div>
+      <div className="w-[11px] h-[11px] rounded-full bg-[#FE2C55] flex items-center justify-center shadow-[0_0_6px_rgba(254,44,85,0.8)]">
+        <div className="w-[5px] h-[5px] rounded-full bg-[#333333]"></div>
+      </div>
+    </div>
+  );
   if (reviewProgress < 25) {
     currentStepText = "视觉画面分析中...";
     currentStepIcon = <Eye size={20} />;
@@ -571,8 +624,484 @@ export default function App() {
               </div>
               <div className="flex-1">
                 <h4 className="text-[14px] font-medium text-white">AI 审查完成</h4>
-                <p className="text-[12px] text-white/70 mt-0.5 leading-relaxed">您的草稿《STOLEN LOVE》已通过审查，无违规风险，可放心发布。</p>
+                <p className="text-[12px] text-white/70 mt-0.5 leading-relaxed">审查通过快去发布吧！</p>
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'publish') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-white text-black overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
+          <div className="flex items-center justify-between px-4 pt-12 pb-4 border-b border-gray-100">
+            <button onClick={() => setCurrentView('fix')} className="active:scale-90 transition-transform">
+              <ChevronLeft size={28} />
+            </button>
+            <div className="font-medium text-[17px]">发布</div>
+            <div className="w-7"></div>
+          </div>
+          <div className="p-4 flex gap-4 border-b border-gray-100">
+            <div className="w-24 h-32 bg-gray-200 rounded-lg overflow-hidden shrink-0">
+              {contentType === 'video' ? (
+                <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" className="w-full h-full object-cover" />
+              ) : (
+                <img src={contentType === 'multi' ? multiImages[0] : "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop"} className="w-full h-full object-cover" />
+              )}
+            </div>
+            <textarea 
+              className="flex-1 resize-none outline-none text-[15px] placeholder:text-gray-400"
+              placeholder="添加描述..."
+            />
+          </div>
+          <div className="mt-auto p-4 border-t border-gray-100 flex gap-3">
+            <button className="flex-1 py-3.5 bg-gray-100 rounded-sm font-medium text-[15px]">草稿</button>
+            <button className="flex-1 py-3.5 bg-[#FE2C55] text-white rounded-sm font-medium text-[15px]">发布</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'fix') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <style>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
+        <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
+          {/* Top Bar (8%) */}
+          <div className="h-[8%] flex items-center justify-between px-4 pt-8 z-30 shrink-0">
+            <button onClick={() => setCurrentView('editor')} className="active:scale-90 transition-transform">
+              <ChevronLeft size={28} />
+            </button>
+            <div className="font-medium text-[15px]">
+              {isAllFixed ? '✓ 全部修复完成' : `修复注意项 (${fixStep}/2)`}
+            </div>
+            <button 
+              onClick={() => { 
+                if (isAllFixed) {
+                  setCurrentView('publish');
+                } else {
+                  setShowPublishWarning(true);
+                }
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#FE2C55] text-white active:scale-95 transition-transform"
+            >
+              <ArrowRight size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          {/* Content based on contentType */}
+          {contentType === 'video' ? (
+            // Video Layout
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Video Preview Container */}
+              <div className="flex-1 w-full flex items-center justify-center min-h-0 relative py-2">
+                <div className="h-full aspect-[9/16] rounded-[20px] border-[1.5px] border-white/25 bg-black overflow-hidden relative mx-auto">
+                  <video 
+                    src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+                    autoPlay={isPlaying} 
+                    loop 
+                    muted 
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                  
+                  {/* Play/Pause Overlay */}
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
+                    onClick={() => setIsPlaying(!isPlaying)}
+                  >
+                    {!isPlaying ? (
+                      <div className="w-14 h-14 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm">
+                        <Play size={28} className="text-white ml-1" fill="currentColor" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm opacity-0 hover:opacity-100 transition-opacity">
+                        <Pause size={28} className="text-white" fill="currentColor" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warning Overlays */}
+                  {!isAllFixed && fixStep === 1 && (
+                    <>
+                      <div className="absolute top-[12%] left-1/2 -translate-x-1/2 text-white text-[17px] font-medium whitespace-nowrap drop-shadow-md z-20 pointer-events-none">
+                        文案含敏感词
+                      </div>
+                      <div className="absolute inset-0 bg-amber-500/20 mix-blend-overlay pointer-events-none z-10" />
+                    </>
+                  )}
+                  {!isAllFixed && fixStep === 2 && (
+                    <>
+                      <div className="absolute top-[12%] left-1/2 -translate-x-1/2 text-white text-[17px] font-medium whitespace-nowrap drop-shadow-md z-20 pointer-events-none">
+                        音乐版权受限
+                      </div>
+                      <div className="absolute inset-0 bg-amber-500/20 mix-blend-overlay pointer-events-none z-10" />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Playback Control Bar */}
+              <div className="h-[40px] flex items-center px-4 justify-between shrink-0 relative">
+                <span className="text-[14px] font-medium text-white/90">00:00/00:03</span>
+                <div className="flex items-center gap-4">
+                  <button className="active:scale-90 transition-transform">
+                    <RefreshCw size={20} className="text-white" />
+                  </button>
+                  <button className="active:scale-90 transition-transform">
+                    <Maximize2 size={20} className="text-white" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 3-Track Timeline Area */}
+              <div className="h-[130px] flex flex-col shrink-0 relative overflow-hidden bg-black">
+                <style>{`
+                  @keyframes moveTracks {
+                    from { transform: translateX(0); }
+                    to { transform: translateX(-50%); }
+                  }
+                `}</style>
+                
+                {/* Time markers */}
+                <div className="h-6 flex items-center relative w-full text-white/50 text-[12px] font-medium">
+                  <div className="absolute left-1/2 -translate-x-1/2">00:00</div>
+                  <div className="absolute left-[75%] -translate-x-1/2">00:02</div>
+                  <div className="absolute left-[100%] -translate-x-1/2">00:04</div>
+                </div>
+
+                {/* Time pointer (Fixed in center) */}
+                <div className="absolute left-1/2 top-6 bottom-2 w-[2px] bg-white rounded-full z-20 shadow-[0_0_4px_rgba(0,0,0,0.5)] -translate-x-1/2 cursor-ew-resize" />
+
+                {/* Tracks Container (Moves) */}
+                <div 
+                  className="flex flex-col gap-2 relative h-full w-[200%]"
+                  style={{ 
+                    animation: 'moveTracks 10s linear infinite',
+                    animationPlayState: isPlaying ? 'running' : 'paused'
+                  }}
+                >
+                  {/* Video Track */}
+                  <div className="h-[56px] flex overflow-hidden relative ml-[25%] w-[50%]">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="flex-1 h-full border-r border-black/20 shrink-0 bg-gray-700 rounded-md overflow-hidden mx-[1px]">
+                        <img src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=100&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+                      </div>
+                    ))}
+                    {/* Problematic segment */}
+                    {!isAllFixed && fixStep === 1 && (
+                      <div 
+                        className="absolute left-[20%] w-[30%] h-full bg-red-500/30 border-l-2 border-r-2 border-red-500 cursor-pointer"
+                        onClick={() => setFixStep(1)}
+                      />
+                    )}
+                  </div>
+
+                  {/* Music Track */}
+                  <div 
+                    className={`h-[44px] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%] cursor-pointer transition-colors ${!isAllFixed && fixStep === 2 ? 'bg-amber-500' : 'bg-[#8B93FF]'}`}
+                    onClick={() => setFixStep(2)}
+                  >
+                    <Music size={16} className="mr-2 shrink-0 text-black/60" />
+                    <span className="text-[14px] font-medium text-black/70 truncate z-10">Lazy</span>
+                    {/* Waveform */}
+                    <div className="absolute inset-0 flex items-center gap-[3px] opacity-20 px-16 overflow-hidden pointer-events-none">
+                      {[...Array(40)].map((_, i) => (
+                        <div key={i} className="w-1.5 bg-black rounded-full" style={{ height: `${20 + Math.sin(i * 0.5) * 50 + Math.random() * 30}%` }} />
+                      ))}
+                    </div>
+                    {!isAllFixed && fixStep === 2 && (
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/40 text-[10px] px-2 py-0.5 rounded-b-md text-white">
+                        受限地区
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Text Track */}
+                  <div className="h-[44px] bg-[#F4A8E6] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%]">
+                    <span className="text-[14px] font-medium text-black/70 truncate">新年快乐</span>
+                    {!isAllFixed && fixStep === 1 && (
+                      <div 
+                        className="absolute left-[20%] w-[30%] h-full border-2 border-red-500 bg-red-500/20 flex items-center px-1 cursor-pointer"
+                        onClick={() => setFixStep(1)}
+                      >
+                        <AlertCircle size={14} className="text-white drop-shadow-md" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hint Box (Video) */}
+              <div className="px-4 py-2 shrink-0">
+                {!isAllFixed && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
+                    <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-[12px] text-white/90">
+                        {fixStep === 1 ? '文案含敏感词：「减肥」类话题限制分发' : '音乐在部分地区版权受限'}
+                      </p>
+                    </div>
+                    <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
+                      查看准则 <ChevronRight size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Toolbar */}
+              <div className="h-[65px] flex items-center justify-around px-2 shrink-0 border-t border-white/10">
+                {!isAllFixed ? (
+                  <button onClick={() => {
+                    if (fixStep === 1) setFixStep(2);
+                    else if (fixStep === 2) setShowMusicSelector(true);
+                    else setIsAllFixed(true);
+                  }} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                    <Wand2 size={24} className="text-[#00f2fe]" />
+                    <span className="text-[10px] text-[#00f2fe]">一键修复</span>
+                  </button>
+                ) : (
+                  <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                    <Edit2 size={24} className="text-white" />
+                    <span className="text-[10px] text-white/80">编辑</span>
+                  </button>
+                )}
+                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                  <Music size={24} className="text-white" />
+                  <span className="text-[10px] text-white/80">音乐</span>
+                </button>
+                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                  <Type size={24} className="text-white" />
+                  <span className="text-[10px] text-white/80">文本</span>
+                </button>
+                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                  <Wand2 size={24} className="text-white" />
+                  <span className="text-[10px] text-white/80">特效</span>
+                </button>
+                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                  <Sparkles size={24} className="text-white" />
+                  <span className="text-[10px] text-white/80">魔法</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Image Layout (Single/Multi)
+            <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
+              {/* Media Viewport Container */}
+              <div className="w-[60%] h-[45%] border border-white/20 rounded-2xl overflow-hidden bg-black flex items-center justify-center shrink-0">
+                <img 
+                  src={contentType === 'multi' ? multiImages[currentImageIndex] : "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop"} 
+                  className="w-full h-full object-contain"
+                  alt="Media"
+                />
+              </div>
+
+              {/* Bottom Tool Area */}
+              <div className="w-full mt-6 flex flex-col gap-4 flex-1">
+                {/* Hint Box */}
+                {!isAllFixed && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
+                    <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-[12px] text-white/90">
+                        {fixStep === 1 ? '画面内容检测到可能违反「安全与礼貌」准则' : '文案含敏感词：「减肥」类话题限制分发'}
+                      </p>
+                    </div>
+                    <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
+                      查看准则 <ChevronRight size={12} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Thumbnails */}
+                {contentType === 'multi' && (
+                  <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1">
+                    {multiImages.map((img, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => setCurrentImageIndex(idx)}
+                        className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 relative ${
+                          idx === currentImageIndex ? 'border-2 border-white' : 'opacity-60'
+                        } ${!isAllFixed && fixStep === 1 && idx === 0 ? 'border-2 border-[#FE2C55] opacity-100' : ''}`}
+                      >
+                        <img src={img} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {contentType === 'single' && (
+                  <div className="flex gap-2 py-1">
+                    <div className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
+                      <img src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Toolbars */}
+                {!isAllFixed && (
+                  <div className="flex gap-2 mt-auto">
+                    <button onClick={() => {
+                      if (fixStep === 1) setFixStep(2);
+                      else setIsAllFixed(true);
+                    }} className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <Wand2 size={24} className="text-[#00f2fe]" />
+                      <span className="text-[11px] text-white/80">一键修复</span>
+                    </button>
+                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <Edit2 size={24} className="text-white/80" />
+                      <span className="text-[11px] text-white/80">编辑</span>
+                    </button>
+                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <RefreshCw size={24} className="text-white/80" />
+                      <span className="text-[11px] text-white/80">替换</span>
+                    </button>
+                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <Trash2 size={24} className="text-white/80" />
+                      <span className="text-[11px] text-white/80">删除</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* Music Selector Popup */}
+          {showMusicSelector && (
+            <div className="absolute inset-0 z-50 flex flex-col justify-end">
+              <div 
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowMusicSelector(false)}
+              />
+              <motion.div 
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="relative h-[80%] bg-[#161823] rounded-t-2xl flex flex-col shadow-2xl"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                  <button onClick={() => setShowMusicSelector(false)}>
+                    <X size={24} className="text-white" />
+                  </button>
+                  <span className="font-medium text-[15px]">配乐</span>
+                  <button onClick={() => {
+                    setShowMusicSelector(false);
+                    setIsAllFixed(true);
+                  }}>
+                    <Search size={24} className="text-white" />
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+                  <div className="flex gap-2">
+                    <button className="px-4 py-1.5 bg-white/10 rounded-full text-[13px] font-medium text-white">版权清晰</button>
+                    <button className="px-4 py-1.5 bg-white/5 rounded-full text-[13px] font-medium text-white/50">热门</button>
+                    <button className="px-4 py-1.5 bg-white/5 rounded-full text-[13px] font-medium text-white/50">收藏</button>
+                  </div>
+
+                  <div className="flex flex-col gap-4 mt-2">
+                    {[
+                      { name: "Summer Vibes", author: "DJ Chill", duration: "01:20" },
+                      { name: "Happy Day", author: "Pop Star", duration: "00:45" },
+                      { name: "Epic Journey", author: "Movie Score", duration: "02:10" },
+                      { name: "Lofi Study", author: "Beats Maker", duration: "03:00" },
+                      { name: "Dance All Night", author: "Club Mix", duration: "01:50" }
+                    ].map((music, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-gray-800 rounded-md flex items-center justify-center shrink-0 relative overflow-hidden">
+                          <Music size={20} className="text-white/50" />
+                          <div className="absolute inset-0 bg-black/20" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <h4 className="text-[15px] font-medium text-white truncate">{music.name}</h4>
+                          <p className="text-[12px] text-white/50 truncate">{music.author} · {music.duration}</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setShowMusicSelector(false);
+                            setIsAllFixed(true);
+                          }}
+                          className="px-4 py-1.5 bg-[#FE2C55] text-white rounded-sm text-[13px] font-medium shrink-0"
+                        >
+                          使用
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+          {/* Publish Warning Popup */}
+          {showPublishWarning && (
+            <div className="absolute inset-0 z-50 flex flex-col justify-end">
+              <div 
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowPublishWarning(false)}
+              />
+              <motion.div 
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="relative bg-[#161823] rounded-t-2xl px-5 pt-6 pb-8 text-white shadow-2xl"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-[20px] font-[700] tracking-tight">确认带风险发布？</h2>
+                  <button 
+                    onClick={() => setShowPublishWarning(false)}
+                    className="p-1.5 active:opacity-70 transition-opacity bg-white/10 rounded-full"
+                  >
+                    <X size={16} className="text-white/80" />
+                  </button>
+                </div>
+
+                <p className="text-[14px] text-white/80 mb-6 leading-relaxed">
+                  你有 {fixStep === 1 ? 2 : 1} 项未修复的注意项：
+                </p>
+
+                <div className="flex flex-col gap-3 mb-8">
+                  {fixStep === 1 && (
+                    <div className="flex items-center gap-2 text-[14px] text-white/90">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
+                      文案含敏感词：「减肥」类话题限制分发
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-[14px] text-white/90">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
+                    音乐在部分地区版权受限
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      setShowPublishWarning(false);
+                      setCurrentView('publish');
+                    }}
+                    className="flex-1 py-3.5 rounded-full font-semibold text-[15px] bg-white/10 text-white active:bg-white/20 transition-colors"
+                  >
+                    仍然发布
+                  </button>
+                  <button 
+                    onClick={() => setShowPublishWarning(false)}
+                    className="flex-1 py-3.5 rounded-full font-semibold text-[15px] bg-[#FE2C55] text-white active:bg-[#FE2C55]/90 transition-colors"
+                  >
+                    返回修复
+                  </button>
+                </div>
+              </motion.div>
             </div>
           )}
         </div>
@@ -583,6 +1112,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
         @keyframes scan {
           0% { top: 0%; opacity: 0; }
           10% { opacity: 1; }
@@ -607,12 +1143,75 @@ export default function App() {
       `}</style>
 
       <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black">
-        {/* Background Image */}
-        <img 
-          src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" 
-          alt="Background" 
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {/* Main Media */}
+        {contentType === 'video' ? (
+          <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
+            <video 
+              src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              className="w-full aspect-[3/4] object-cover"
+            />
+          </div>
+        ) : contentType === 'multi' ? (
+          <div 
+            ref={scrollContainerRef}
+            className="absolute inset-0 w-full h-full bg-black flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+            onScroll={(e) => {
+              const scrollLeft = e.currentTarget.scrollLeft;
+              const width = e.currentTarget.clientWidth;
+              const index = Math.round(scrollLeft / width);
+              if (index !== currentImageIndex) {
+                setCurrentImageIndex(index);
+              }
+            }}
+          >
+            {multiImages.map((img, idx) => (
+              <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
+                <img src={img} className="w-full aspect-[3/4] object-cover" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <img 
+            src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" 
+            alt="Background" 
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+
+        {/* Content Type Selector Overlay */}
+        {contentType === null && (
+          <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-[#1A1A1A] rounded-2xl p-5 w-[260px] flex flex-col gap-3 shadow-2xl border border-white/10"
+            >
+              <h3 className="text-white font-semibold text-center mb-2 text-[16px]">选择内容类型</h3>
+              <button 
+                onClick={() => setContentType('single')}
+                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+              >
+                单图
+              </button>
+              <button 
+                onClick={() => setContentType('multi')}
+                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+              >
+                多图
+              </button>
+              <button 
+                onClick={() => setContentType('video')}
+                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+              >
+                视频
+              </button>
+            </motion.div>
+          </div>
+        )}
 
         {/* AI Scanning Laser Effect */}
         {showReviewUI && reviewProgress < 100 && (
@@ -652,7 +1251,7 @@ export default function App() {
                 <Sparkles size={32} className="text-[#00D27A]" />
               </div>
               <h3 className="text-[20px] font-bold text-white mb-2 tracking-wide">审查通过</h3>
-              <p className="text-[14px] text-white/80 font-medium">内容极度舒适，快去发布吧！🎉</p>
+              <p className="text-[14px] text-white/80 font-medium">审查通过快去发布吧！🎉</p>
             </div>
           </div>
         )}
@@ -787,7 +1386,7 @@ export default function App() {
         </div>
 
         {/* AI Review Row */}
-        <div className="absolute bottom-[100px] inset-x-4 flex gap-3 items-center justify-end z-40 pointer-events-none">
+        <div className={`absolute ${contentType === 'multi' ? 'bottom-[160px]' : 'bottom-[100px]'} inset-x-4 flex gap-3 items-center justify-end z-40 pointer-events-none transition-all duration-300`}>
           {/* AI Review On-Screen Feedback */}
           {showReviewUI && (
             <div className="flex-1 flex items-center h-[56px] animate-fade-in-right pointer-events-auto">
@@ -827,16 +1426,69 @@ export default function App() {
           {/* AI Review Button */}
           <div className="w-[42px] shrink-0 flex justify-center pointer-events-auto">
             <button 
-              onClick={startReview}
-              className="flex flex-col items-center justify-center active:scale-95 transition-transform"
+              onClick={() => {
+                if (!isReviewing) {
+                  setShowAIPopup(true);
+                }
+              }}
+              className={`flex flex-col items-center justify-center transition-transform relative ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
             >
-              <div className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] mb-1">
-                <Bot size={28} strokeWidth={2} className="text-white" />
+              <div className="flex items-center justify-center gap-1 mb-1 h-[28px] relative">
+                <div className="w-[16px] h-[16px] rounded-full bg-[#20D5EC] flex items-center justify-center shadow-[0_0_8px_rgba(32,213,236,0.8)]">
+                  <div className="w-[7px] h-[7px] rounded-full bg-[#333333]"></div>
+                </div>
+                <div className="w-[16px] h-[16px] rounded-full bg-[#FE2C55] flex items-center justify-center shadow-[0_0_8px_rgba(254,44,85,0.8)]">
+                  <div className="w-[7px] h-[7px] rounded-full bg-[#333333]"></div>
+                </div>
+                {/* AI Tag */}
+                <div className="absolute -top-1.5 -right-3.5 bg-gray-500/50 backdrop-blur-sm rounded-[4px] px-1 py-[2px] border border-white/10 flex items-center justify-center">
+                  <span className="text-[9px] font-bold text-white leading-none tracking-wider">AI</span>
+                </div>
               </div>
-              <span className="text-[11px] font-semibold text-white drop-shadow-md whitespace-nowrap" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>AI审查</span>
             </button>
           </div>
         </div>
+
+        {/* Multi-image indicator */}
+        {contentType === 'multi' && (
+          <div className="absolute bottom-[90px] inset-x-0 flex justify-center items-end gap-3 z-30 pointer-events-auto">
+            {/* Grid Icon */}
+            <div className="w-10 h-10 rounded-[10px] bg-black/50 backdrop-blur-md flex items-center justify-center mb-1">
+              <Grid size={20} className="text-white" />
+            </div>
+            
+            {/* Thumbnails */}
+            <div className="flex items-end gap-2">
+              {multiImages.map((img, idx) => {
+                const isActive = currentImageIndex === idx;
+                return (
+                  <div key={idx} className="relative flex flex-col items-center justify-end h-[64px]">
+                    {isActive && (
+                      <motion.div layoutId="active-chevron" className="absolute top-0">
+                        <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
+                      </motion.div>
+                    )}
+                    <div 
+                      onClick={() => handleThumbnailClick(idx)}
+                      className={`rounded-[10px] overflow-hidden transition-all duration-300 cursor-pointer ${
+                        isActive 
+                          ? 'w-12 h-12 border-[2px] border-white' 
+                          : 'w-10 h-10 border border-transparent opacity-60 mb-1'
+                      }`}
+                    >
+                      <img src={img} className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Plus Icon */}
+            <div className="w-10 h-10 rounded-[10px] bg-black/50 backdrop-blur-md flex items-center justify-center mb-1">
+              <Plus size={22} className="text-white" />
+            </div>
+          </div>
+        )}
 
         {/* Bottom Bar */}
         <div className="absolute bottom-8 inset-x-4 flex space-x-3 z-10 h-[48px]">
@@ -847,13 +1499,178 @@ export default function App() {
             <span className="tracking-tight">你的限时动态</span>
           </button>
           <button 
-            onClick={() => setCurrentView('publish')}
-            className="flex-1 flex items-center justify-center h-full bg-[#FE2C55] text-white rounded-full font-semibold text-[15px] shadow-lg tracking-wide active:scale-95 transition-transform"
+            onClick={() => {
+              if (!isReviewing) {
+                setCurrentView('publish');
+              }
+            }}
+            className={`flex-1 flex items-center justify-center h-full rounded-full font-semibold text-[15px] shadow-lg tracking-wide transition-all ${
+              isReviewing 
+                ? 'bg-[#FE2C55]/50 text-white/70 cursor-not-allowed' 
+                : 'bg-[#FE2C55] text-white active:scale-95'
+            }`}
           >
-            下一步
+            {isReviewing ? '审查中...' : '下一步'}
           </button>
         </div>
 
+        {/* AI Review Popup */}
+        {showAIPopup && (
+          <div className="absolute inset-0 z-50 flex flex-col justify-end">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowAIPopup(false)}
+            />
+            
+            {/* Popup Content */}
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative bg-[#161823]/80 backdrop-blur-[20px] rounded-t-2xl px-5 pt-6 pb-8 text-white shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-[22px] font-[700] tracking-tight">AI 审查</h2>
+                <button 
+                  onClick={() => setShowAIPopup(false)}
+                  className="p-1.5 active:opacity-70 transition-opacity"
+                >
+                  <X size={18} className="text-white/80" />
+                </button>
+              </div>
+
+              <div className="flex flex-col mb-6">
+                <div className="flex items-center gap-4 py-4 border-b border-white/10">
+                  <div className="shrink-0">
+                    <Eye size={24} strokeWidth={1.5} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-semibold mb-0.5">视觉内容</h3>
+                    <p className="text-[13px] text-white/60">检测画面中的违规元素</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 py-4 border-b border-white/10">
+                  <div className="shrink-0">
+                    <Volume2 size={24} strokeWidth={1.5} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-semibold mb-0.5">音频轨道</h3>
+                    <p className="text-[13px] text-white/60">识别版权限制与违规声音</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 py-4 border-b border-white/10">
+                  <div className="shrink-0">
+                    <FileText size={24} strokeWidth={1.5} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-semibold mb-0.5">文字内容</h3>
+                    <p className="text-[13px] text-white/60">扫描字幕与文案中的敏感词</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6 space-y-3">
+                <p className="text-[13px] text-white/60 leading-relaxed">
+                  审查可能需要几分钟。较长视频可先返回，存草稿后台检测。
+                </p>
+                <p className="text-[11px] text-white/40 leading-relaxed">
+                  声明：本功能帮助你在发布前主动发现常见风险，不代替平台的正式审核流程。平台审核以实际发布后的结果为准。
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    setShowAIPopup(false);
+                    startReview();
+                  }}
+                  className="w-full py-3.5 rounded-full font-semibold text-[15px] bg-[#FE2C55] text-white active:bg-[#FE2C55]/90 transition-colors"
+                >
+                  开始检测
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Risk Popup */}
+        {showRiskPopup && (
+          <div className="absolute inset-0 z-50 flex flex-col justify-end">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setShowRiskPopup(false)}
+            />
+            
+            {/* Popup Content */}
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative bg-[#161823]/95 backdrop-blur-[20px] rounded-t-2xl px-5 pt-4 pb-8 text-white shadow-2xl"
+            >
+              {/* Drag Handle */}
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
+
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-[20px] font-[700] tracking-tight">发现注意项</h2>
+                <button 
+                  onClick={() => setShowRiskPopup(false)}
+                  className="p-1.5 active:opacity-70 transition-opacity bg-white/10 rounded-full"
+                >
+                  <X size={16} className="text-white/80" />
+                </button>
+              </div>
+
+              <p className="text-[14px] text-white/80 mb-6 leading-relaxed">
+                发现2个注意项，建议修复后发布，以免影响分发
+              </p>
+
+              <div className="flex flex-col gap-4 mb-8">
+                <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                  <div className="shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
+                      <Volume2 size={16} className="text-[#FE2C55]" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] font-semibold mb-1">音乐版权受区域限制</h3>
+                    <p className="text-[12px] text-white/60 leading-relaxed">部分地区用户无法收听</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                  <div className="shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
+                      <FileText size={16} className="text-[#FE2C55]" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] font-semibold mb-1">文案含敏感词</h3>
+                    <p className="text-[12px] text-white/60 leading-relaxed">「减肥」类话题限制分发</p>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setShowRiskPopup(false);
+                  setCurrentView('fix');
+                  setFixStep(1);
+                  setIsAllFixed(false);
+                }}
+                className="w-full py-3.5 rounded-full font-semibold text-[15px] bg-[#FE2C55] text-white active:bg-[#FE2C55]/90 transition-colors"
+              >
+                去修复
+              </button>
+            </motion.div>
+          </div>
+        )}
 
       </div>
     </div>
