@@ -927,45 +927,59 @@ export default function App() {
               </div>
 
               {/* Bottom Toolbar */}
-              <div className="h-[65px] flex items-center justify-around px-2 shrink-0 border-t border-white/10">
-                {!isAllFixed ? (
-                  <button onClick={() => {
-                    if (fixStep === 1) setFixStep(2);
-                    else if (fixStep === 2) setShowMusicSelector(true);
-                    else setIsAllFixed(true);
-                  }} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                    <Wand2 size={24} className="text-[#00f2fe]" />
-                    <span className="text-[10px] text-[#00f2fe]">一键修复</span>
-                  </button>
-                ) : (
-                  <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                    <Edit2 size={24} className="text-white" />
-                    <span className="text-[10px] text-white/80">编辑</span>
-                  </button>
-                )}
-                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                  <Music size={24} className="text-white" />
-                  <span className="text-[10px] text-white/80">音乐</span>
-                </button>
-                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                  <Type size={24} className="text-white" />
-                  <span className="text-[10px] text-white/80">文本</span>
-                </button>
-                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                  <Wand2 size={24} className="text-white" />
-                  <span className="text-[10px] text-white/80">特效</span>
-                </button>
-                <button className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
-                  <Sparkles size={24} className="text-white" />
-                  <span className="text-[10px] text-white/80">魔法</span>
-                </button>
-              </div>
+              {!isAllFixed && (
+                <div className="w-[calc(100%+16px)] -mx-2 overflow-x-auto scrollbar-hide pb-1 shrink-0 border-t border-white/10 pt-3">
+                  <div className="min-w-max flex gap-1">
+                    <button
+                      onClick={() => {
+                        if (fixStep === 1) setFixStep(2);
+                        else if (fixStep === 2) setShowMusicSelector(true);
+                        else setIsAllFixed(true);
+                      }}
+                      className="w-[74px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+                    >
+                      <Wand2 size={24} className="text-[#00f2fe]" />
+                      <span className="text-[11px] text-[#00f2fe] font-medium">一键修复</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <img src="/assets/icons/tools/edit.png" alt="编辑" className="w-6 h-6" />
+                      <span className="text-[11px] text-white/85 font-medium">编辑</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <img src="/assets/icons/tools/voice.png" alt="音乐" className="w-6 h-6" />
+                      <span className="text-[11px] text-white/85 font-medium">音乐</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <img src="/assets/icons/tools/text.png" alt="文本" className="w-6 h-6" />
+                      <span className="text-[11px] text-white/85 font-medium">文本</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <img src="/assets/icons/tools/effects.png" alt="特效" className="w-6 h-6" />
+                      <span className="text-[11px] text-white/85 font-medium">特效</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <img src="/assets/icons/tools/filters.png" alt="滤镜" className="w-6 h-6" />
+                      <span className="text-[11px] text-white/85 font-medium">滤镜</span>
+                    </button>
+
+                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                      <Subtitles size={24} className="text-white/85" />
+                      <span className="text-[11px] text-white/85 font-medium">字幕</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             // Image Layout (Single/Multi)
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
               {/* Media Viewport Container */}
-              <div className="w-[60%] h-[45%] border border-white/20 rounded-2xl overflow-hidden bg-black flex items-center justify-center shrink-0">
+              <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0">
                 <img 
                   src={contentType === 'multi' ? multiImages[currentImageIndex] : activeSingleImage} 
                   className="w-full h-full object-contain"
@@ -974,10 +988,55 @@ export default function App() {
               </div>
 
               {/* Bottom Tool Area */}
-              <div className="w-full mt-6 flex flex-col gap-4 flex-1">
+              <div className="w-full mt-6 flex flex-col flex-1">
+                {/* Thumbnail Preview (center aligned, no side icons) */}
+                {contentType === 'multi' && (
+                  <div className="w-full flex justify-center mt-auto">
+                    <div className="flex items-end gap-2">
+                      {multiImages.map((img, idx) => {
+                        const isActive = currentImageIndex === idx;
+                        const isRiskImage = !isAllFixed && fixStep === 1 && idx === 0;
+                        return (
+                          <div key={idx} className="relative flex flex-col items-center justify-end h-[64px]">
+                            {isActive && (
+                              <motion.div layoutId="fix-active-chevron" className="absolute top-0">
+                                <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
+                              </motion.div>
+                            )}
+                            <button
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`rounded-[10px] overflow-hidden transition-all duration-300 ${
+                                isActive
+                                  ? `w-12 h-12 border-[2px] ${isRiskImage ? 'border-[#FE2C55]' : 'border-white'}`
+                                  : `w-10 h-10 border ${isRiskImage ? 'border-[#FE2C55] opacity-100' : 'border-transparent opacity-60'} mb-1`
+                              }`}
+                            >
+                              <img src={img} className="w-full h-full object-cover" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {contentType === 'single' && (
+                  <div className="w-full flex justify-center mt-auto">
+                    <div className="flex items-end gap-2">
+                      <div className="relative flex flex-col items-center justify-end h-[64px]">
+                        <motion.div layoutId="fix-active-chevron" className="absolute top-0">
+                          <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
+                        </motion.div>
+                        <div className={`w-12 h-12 rounded-[10px] overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
+                          <img src={activeSingleImage} className="w-full h-full object-cover" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Hint Box */}
                 {!isAllFixed && (
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
+                  <div className="mt-4 -mx-1 bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
                     <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-[12px] text-white/90">
@@ -990,52 +1049,51 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Thumbnails */}
-                {contentType === 'multi' && (
-                  <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1">
-                    {multiImages.map((img, idx) => (
-                      <button 
-                        key={idx}
-                        onClick={() => setCurrentImageIndex(idx)}
-                        className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 relative ${
-                          idx === currentImageIndex ? 'border-2 border-white' : 'opacity-60'
-                        } ${!isAllFixed && fixStep === 1 && idx === 0 ? 'border-2 border-[#FE2C55] opacity-100' : ''}`}
-                      >
-                        <img src={img} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {contentType === 'single' && (
-                  <div className="flex gap-2 py-1">
-                    <div className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
-                      <img src={activeSingleImage} className="w-full h-full object-cover" />
-                    </div>
-                  </div>
-                )}
-
                 {/* Toolbars */}
                 {!isAllFixed && (
-                  <div className="flex gap-2 mt-auto">
-                    <button onClick={() => {
-                      if (fixStep === 1) setFixStep(2);
-                      else setIsAllFixed(true);
-                    }} className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
-                      <Wand2 size={24} className="text-[#00f2fe]" />
-                      <span className="text-[11px] text-white/80">一键修复</span>
-                    </button>
-                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
-                      <Edit2 size={24} className="text-white/80" />
-                      <span className="text-[11px] text-white/80">编辑</span>
-                    </button>
-                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
-                      <RefreshCw size={24} className="text-white/80" />
-                      <span className="text-[11px] text-white/80">替换</span>
-                    </button>
-                    <button className="flex-1 aspect-square bg-[#252525] rounded-xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
-                      <Trash2 size={24} className="text-white/80" />
-                      <span className="text-[11px] text-white/80">删除</span>
-                    </button>
+                  <div className="w-[calc(100%+16px)] -mx-2 mt-4 overflow-x-auto scrollbar-hide pb-1">
+                    <div className="min-w-max flex gap-1">
+                      <button
+                        onClick={() => {
+                          if (fixStep === 1) setFixStep(2);
+                          else setIsAllFixed(true);
+                        }}
+                        className="w-[74px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+                      >
+                        <Wand2 size={24} className="text-[#00f2fe]" />
+                        <span className="text-[11px] text-[#00f2fe] font-medium">一键修复</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/edit.png" alt="编辑" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">编辑</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/voice.png" alt="音乐" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">音乐</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/text.png" alt="文本" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">文本</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/effects.png" alt="特效" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">特效</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/filters.png" alt="滤镜" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">滤镜</span>
+                      </button>
+
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <Subtitles size={24} className="text-white/85" />
+                        <span className="text-[11px] text-white/85 font-medium">字幕</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
