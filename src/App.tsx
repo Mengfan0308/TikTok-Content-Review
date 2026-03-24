@@ -61,6 +61,9 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  type ReviewOutcome = 'safe' | 'risk';
+  type ContentType = 'single' | 'multi' | 'video';
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [showReviewUI, setShowReviewUI] = useState(false);
@@ -73,13 +76,14 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [showAIPopup, setShowAIPopup] = useState(false);
-  const [reviewResult, setReviewResult] = useState<'safe' | 'risk' | null>(null);
+  const [reviewResult, setReviewResult] = useState<ReviewOutcome | null>(null);
   const [showRiskPopup, setShowRiskPopup] = useState(false);
   const [fixStep, setFixStep] = useState(1);
   const [isAllFixed, setIsAllFixed] = useState(false);
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [showMusicSelector, setShowMusicSelector] = useState(false);
-  const [contentType, setContentType] = useState<'single' | 'multi' | 'video' | null>(null);
+  const [contentType, setContentType] = useState<ContentType | null>(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<ReviewOutcome | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -95,11 +99,44 @@ export default function App() {
     }
   };
 
-  const multiImages = [
+  const defaultMultiImages = [
     "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=1000&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=1000&auto=format&fit=crop"
   ];
+
+  const mediaLibrary: Record<ReviewOutcome, { single: string; multi: string[]; video: string }> = {
+    safe: {
+      single: '/assets/content/safe/single/a.jpg',
+      multi: [
+        '/assets/content/safe/multi/a.jpg',
+        '/assets/content/safe/multi/b.jpg',
+        '/assets/content/safe/multi/c.jpg'
+      ],
+      video: '/assets/content/safe/video/happy.mp4'
+    },
+    risk: {
+      single: '/assets/content/risk/single/a.jpg',
+      multi: [
+        '/assets/content/risk/multi/a.jpg',
+        '/assets/content/risk/multi/b.jpg',
+        '/assets/content/risk/multi/c.jpg'
+      ],
+      video: '/assets/content/risk/video/de.mp4'
+    }
+  };
+
+  const activeSingleImage = selectedOutcome ? mediaLibrary[selectedOutcome].single : defaultMultiImages[0];
+  const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
+  const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+
+  const selectScenario = (nextType: ContentType, nextOutcome: ReviewOutcome) => {
+    setContentType(nextType);
+    setSelectedOutcome(nextOutcome);
+    setReviewResult(null);
+    setCurrentImageIndex(0);
+    setIsPlaying(false);
+  };
 
   const tools = [
     { id: 'edit', icon: <MonitorPlay size={26} strokeWidth={1.5} />, label: '编辑' },
@@ -186,7 +223,7 @@ export default function App() {
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
-    setReviewResult(Math.random() > 0.5 ? 'safe' : 'risk');
+    setReviewResult(selectedOutcome ?? 'safe');
   };
 
   const handleBack = () => {
@@ -239,7 +276,7 @@ export default function App() {
             {/* Media Preview Row */}
             <div className="px-4 flex gap-3 mb-6">
               <div className="w-[120px] h-[120px] rounded-2xl overflow-hidden relative bg-gray-100">
-                <img src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" alt="preview" className="w-full h-full object-cover" />
+                <img src={activeSingleImage} alt="preview" className="w-full h-full object-cover" />
               </div>
               <div className="w-[120px] h-[120px] rounded-2xl bg-gray-100 flex items-center justify-center active:bg-gray-200 transition-colors cursor-pointer">
                 <Plus size={32} className="text-gray-400" />
@@ -379,7 +416,7 @@ export default function App() {
           {/* Full Screen Background */}
           <div className="absolute inset-0 z-0">
             <img 
-              src={uploadComplete ? "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" : "https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=2574&auto=format&fit=crop"} 
+              src={uploadComplete ? activeSingleImage : (multiImages[1] ?? activeSingleImage)} 
               alt="Friends Content" 
               className="w-full h-full object-cover transition-all duration-500"
             />
@@ -473,7 +510,7 @@ export default function App() {
                 {isUploading && !uploadComplete && (
                   <div className="relative w-[72px] h-[96px] rounded-xl overflow-hidden shadow-lg border-2 border-white/80 mt-4">
                     <img 
-                      src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" 
+                      src={activeSingleImage} 
                       alt="Uploading" 
                       className="absolute inset-0 w-full h-full object-cover opacity-80"
                     />
@@ -647,9 +684,9 @@ export default function App() {
           <div className="p-4 flex gap-4 border-b border-gray-100">
             <div className="w-24 h-32 bg-gray-200 rounded-lg overflow-hidden shrink-0">
               {contentType === 'video' ? (
-                <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" className="w-full h-full object-cover" />
+                <video src={activeVideo} className="w-full h-full object-cover" />
               ) : (
-                <img src={contentType === 'multi' ? multiImages[0] : "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop"} className="w-full h-full object-cover" />
+                <img src={contentType === 'multi' ? multiImages[0] : activeSingleImage} className="w-full h-full object-cover" />
               )}
             </div>
             <textarea 
@@ -709,7 +746,7 @@ export default function App() {
               <div className="flex-1 w-full flex items-center justify-center min-h-0 relative py-2">
                 <div className="h-full aspect-[9/16] rounded-[20px] border-[1.5px] border-white/25 bg-black overflow-hidden relative mx-auto">
                   <video 
-                    src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+                    src={activeVideo} 
                     autoPlay={isPlaying} 
                     loop 
                     muted 
@@ -797,7 +834,7 @@ export default function App() {
                   <div className="h-[56px] flex overflow-hidden relative ml-[25%] w-[50%]">
                     {[...Array(6)].map((_, i) => (
                       <div key={i} className="flex-1 h-full border-r border-black/20 shrink-0 bg-gray-700 rounded-md overflow-hidden mx-[1px]">
-                        <img src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=100&auto=format&fit=crop" className="w-full h-full object-cover opacity-80" />
+                        <img src={activeSingleImage} className="w-full h-full object-cover opacity-80" />
                       </div>
                     ))}
                     {/* Problematic segment */}
@@ -902,7 +939,7 @@ export default function App() {
               {/* Media Viewport Container */}
               <div className="w-[60%] h-[45%] border border-white/20 rounded-2xl overflow-hidden bg-black flex items-center justify-center shrink-0">
                 <img 
-                  src={contentType === 'multi' ? multiImages[currentImageIndex] : "https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop"} 
+                  src={contentType === 'multi' ? multiImages[currentImageIndex] : activeSingleImage} 
                   className="w-full h-full object-contain"
                   alt="Media"
                 />
@@ -944,7 +981,7 @@ export default function App() {
                 {contentType === 'single' && (
                   <div className="flex gap-2 py-1">
                     <div className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
-                      <img src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" className="w-full h-full object-cover" />
+                      <img src={activeSingleImage} className="w-full h-full object-cover" />
                     </div>
                   </div>
                 )}
@@ -1142,45 +1179,47 @@ export default function App() {
         }
       `}</style>
 
-      <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black">
-        {/* Main Media */}
-        {contentType === 'video' ? (
-          <div className="absolute inset-0 w-full h-full bg-black flex items-center justify-center">
+      <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
+        {/* Media Container with proper spacing */}
+        <div className={`flex-1 flex items-center justify-center overflow-hidden ${contentType === 'multi' ? 'mt-[122px] mb-[166px]' : contentType === 'video' ? 'mt-[122px] mb-[136px]' : 'mt-[122px] mb-[136px]'}`}>
+          {contentType === 'video' ? (
             <video 
-              src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" 
+              src={activeVideo} 
               autoPlay 
               loop 
               muted 
               playsInline
-              className="w-full aspect-[3/4] object-cover"
+              className="w-full h-full object-contain"
             />
-          </div>
-        ) : contentType === 'multi' ? (
-          <div 
-            ref={scrollContainerRef}
-            className="absolute inset-0 w-full h-full bg-black flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-            onScroll={(e) => {
-              const scrollLeft = e.currentTarget.scrollLeft;
-              const width = e.currentTarget.clientWidth;
-              const index = Math.round(scrollLeft / width);
-              if (index !== currentImageIndex) {
-                setCurrentImageIndex(index);
-              }
-            }}
-          >
-            {multiImages.map((img, idx) => (
-              <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
-                <img src={img} className="w-full aspect-[3/4] object-cover" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <img 
-            src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=1000&auto=format&fit=crop" 
-            alt="Background" 
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
+          ) : contentType === 'multi' ? (
+            <div 
+              ref={scrollContainerRef}
+              className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+              onScroll={(e) => {
+                const scrollLeft = e.currentTarget.scrollLeft;
+                const width = e.currentTarget.clientWidth;
+                const index = Math.round(scrollLeft / width);
+                if (index !== currentImageIndex) {
+                  setCurrentImageIndex(index);
+                }
+              }}
+            >
+              {multiImages.map((img, idx) => (
+                <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
+                  <img src={img} className="w-full h-full object-contain" />
+                </div>
+              ))}
+            </div>
+          ) : contentType ? (
+            <img 
+              src={activeSingleImage} 
+              alt="Content" 
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <div className="w-full h-full bg-black" />
+          )}
+        </div>
 
         {/* Content Type Selector Overlay */}
         {contentType === null && (
@@ -1190,24 +1229,42 @@ export default function App() {
               animate={{ scale: 1, opacity: 1 }}
               className="bg-[#1A1A1A] rounded-2xl p-5 w-[260px] flex flex-col gap-3 shadow-2xl border border-white/10"
             >
-              <h3 className="text-white font-semibold text-center mb-2 text-[16px]">选择内容类型</h3>
+              <h3 className="text-white font-semibold text-center mb-2 text-[16px]">选择上传场景</h3>
               <button 
-                onClick={() => setContentType('single')}
-                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+                onClick={() => selectScenario('single', 'safe')}
+                className="w-full py-3.5 bg-[#00D27A]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#00D27A]/25 transition-colors"
               >
-                单图
+                无风险 - 单图
               </button>
               <button 
-                onClick={() => setContentType('multi')}
-                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+                onClick={() => selectScenario('multi', 'safe')}
+                className="w-full py-3.5 bg-[#00D27A]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#00D27A]/25 transition-colors"
               >
-                多图
+                无风险 - 多图
               </button>
               <button 
-                onClick={() => setContentType('video')}
-                className="w-full py-3.5 bg-white/10 rounded-xl text-white font-medium text-[15px] active:bg-white/20 transition-colors"
+                onClick={() => selectScenario('video', 'safe')}
+                className="w-full py-3.5 bg-[#00D27A]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#00D27A]/25 transition-colors"
               >
-                视频
+                无风险 - 视频
+              </button>
+              <button 
+                onClick={() => selectScenario('single', 'risk')}
+                className="w-full py-3.5 bg-[#FE2C55]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#FE2C55]/25 transition-colors"
+              >
+                有风险 - 单图
+              </button>
+              <button 
+                onClick={() => selectScenario('multi', 'risk')}
+                className="w-full py-3.5 bg-[#FE2C55]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#FE2C55]/25 transition-colors"
+              >
+                有风险 - 多图
+              </button>
+              <button 
+                onClick={() => selectScenario('video', 'risk')}
+                className="w-full py-3.5 bg-[#FE2C55]/15 rounded-xl text-white font-medium text-[15px] active:bg-[#FE2C55]/25 transition-colors"
+              >
+                有风险 - 视频
               </button>
             </motion.div>
           </div>
