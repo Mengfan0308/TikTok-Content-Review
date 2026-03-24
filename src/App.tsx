@@ -18,7 +18,6 @@ import {
   Eye,
   Volume2,
   FileText,
-  Hash,
   CheckCircle2,
   Loader2,
   Trash2,
@@ -63,6 +62,7 @@ import {
 export default function App() {
   type ReviewOutcome = 'safe' | 'risk';
   type ContentType = 'single' | 'multi' | 'video';
+  type ReviewCheckKey = 'visual' | 'audio' | 'text';
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -84,9 +84,36 @@ export default function App() {
   const [showMusicSelector, setShowMusicSelector] = useState(false);
   const [contentType, setContentType] = useState<ContentType | null>(null);
   const [selectedOutcome, setSelectedOutcome] = useState<ReviewOutcome | null>(null);
+  const [reviewChecks, setReviewChecks] = useState<Record<ReviewCheckKey, boolean>>({
+    visual: true,
+    audio: true,
+    text: true,
+  });
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const reviewItems: Array<{ key: ReviewCheckKey; label: string; desc: string; statusText: string }> = [
+    { key: 'visual', label: '视觉内容', desc: '检测画面中的违规元素', statusText: '视觉画面分析中...' },
+    { key: 'audio', label: '音频轨道', desc: '识别版权限制与违规声音', statusText: '音频轨道检测中...' },
+    { key: 'text', label: '文字内容', desc: '扫描字幕与文案中的敏感词', statusText: '文本字幕审核中...' },
+  ];
+
+  const enabledReviewItems = reviewItems.filter(item => reviewChecks[item.key]);
+
+  const renderReviewIcon = (key: ReviewCheckKey, size = 20, strokeWidth = 1.8) => {
+    if (key === 'visual') return <Eye size={size} strokeWidth={strokeWidth} className="text-white" />;
+    if (key === 'audio') return <Volume2 size={size} strokeWidth={strokeWidth} className="text-white" />;
+    return <FileText size={size} strokeWidth={strokeWidth} className="text-white" />;
+  };
+
+  const getReviewItemProgress = (index: number) => {
+    if (enabledReviewItems.length === 0) return 0;
+    const segment = 100 / enabledReviewItems.length;
+    const start = index * segment;
+    const raw = ((reviewProgress - start) / segment) * 100;
+    return Math.max(0, Math.min(100, raw));
+  };
 
   const handleThumbnailClick = (index: number) => {
     setCurrentImageIndex(index);
@@ -139,13 +166,13 @@ export default function App() {
   };
 
   const tools = [
-    { id: 'edit', icon: <MonitorPlay size={26} strokeWidth={1.5} />, label: '编辑' },
-    { id: 'template', icon: <Copy size={26} strokeWidth={1.5} />, label: '模板' },
-    { id: 'text', icon: <span className="font-semibold text-[22px] leading-none">Aa</span>, label: '文本' },
-    { id: 'sticker', icon: <Sticker size={26} strokeWidth={1.5} />, label: '贴纸' },
-    { id: 'effects', icon: <Sparkles size={26} strokeWidth={1.5} />, label: '特效' },
-    { id: 'filters', icon: <Aperture size={26} strokeWidth={1.5} />, label: '滤镜' },
-    { id: 'voice', icon: <Mic size={26} strokeWidth={1.5} />, label: '声音', hiddenCollapsed: true },
+    { id: 'edit', icon: null, imageUrl: '/assets/icons/tools/edit.png', label: '编辑' },
+    { id: 'template', icon: null, imageUrl: '/assets/icons/tools/template.png', label: '模板' },
+    { id: 'text', icon: null, imageUrl: '/assets/icons/tools/text.png', label: '文本' },
+    { id: 'sticker', icon: null, imageUrl: '/assets/icons/tools/sticker.png', label: '贴纸' },
+    { id: 'effects', icon: null, imageUrl: '/assets/icons/tools/effects.png', label: '特效' },
+    { id: 'filters', icon: null, imageUrl: '/assets/icons/tools/filters.png', label: '滤镜' },
+    { id: 'voice', icon: null, imageUrl: '/assets/icons/tools/voice.png', label: '声音', hiddenCollapsed: true },
     { id: 'captions', icon: <Subtitles size={26} strokeWidth={1.5} />, label: '字幕', hiddenCollapsed: true },
   ];
 
@@ -220,17 +247,22 @@ export default function App() {
   }, [isUploading]);
 
   const startReview = () => {
+    if (enabledReviewItems.length === 0) {
+      return;
+    }
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
     setReviewResult(selectedOutcome ?? 'safe');
   };
 
+  const toggleReviewCheck = (key: ReviewCheckKey) => {
+    setReviewChecks(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const handleBack = () => {
     setShowBackMenu(!showBackMenu);
   };
-
-  const timeLeft = Math.ceil(6 * (1 - reviewProgress / 100));
 
   let currentStepText = "准备中...";
   let currentStepIcon = (
@@ -243,20 +275,16 @@ export default function App() {
       </div>
     </div>
   );
-  if (reviewProgress < 25) {
-    currentStepText = "视觉画面分析中...";
-    currentStepIcon = <Eye size={20} />;
-  } else if (reviewProgress < 50) {
-    currentStepText = "音频轨道检测中...";
-    currentStepIcon = <Volume2 size={20} />;
-  } else if (reviewProgress < 75) {
-    currentStepText = "文本字幕审核中...";
-    currentStepIcon = <FileText size={20} />;
-  } else if (reviewProgress < 100) {
-    currentStepText = "综合风险评估中...";
-    currentStepIcon = <Hash size={20} />;
-  } else {
-    currentStepText = "审查完成，无违规风险";
+  if (reviewProgress < 100 && enabledReviewItems.length > 0) {
+    const segment = 100 / enabledReviewItems.length;
+    const activeIndex = Math.min(enabledReviewItems.length - 1, Math.floor(reviewProgress / segment));
+    const activeItem = enabledReviewItems[activeIndex];
+    currentStepText = activeItem?.statusText ?? "综合风险评估中...";
+    if (activeItem) {
+      currentStepIcon = renderReviewIcon(activeItem.key, 20, 1.8);
+    }
+  } else if (reviewProgress >= 100) {
+    currentStepText = "审查完成";
     currentStepIcon = <CheckCircle2 size={20} />;
   }
 
@@ -1180,45 +1208,50 @@ export default function App() {
       `}</style>
 
       <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
-        {/* Media Container with proper spacing */}
-        <div className={`flex-1 flex items-center justify-center overflow-hidden ${contentType === 'multi' ? 'mt-[122px] mb-[166px]' : contentType === 'video' ? 'mt-[122px] mb-[136px]' : 'mt-[122px] mb-[136px]'}`}>
-          {contentType === 'video' ? (
-            <video 
-              src={activeVideo} 
-              autoPlay 
-              loop 
-              muted 
-              playsInline
-              className="w-full h-full object-contain"
-            />
-          ) : contentType === 'multi' ? (
-            <div 
-              ref={scrollContainerRef}
-              className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-              onScroll={(e) => {
-                const scrollLeft = e.currentTarget.scrollLeft;
-                const width = e.currentTarget.clientWidth;
-                const index = Math.round(scrollLeft / width);
-                if (index !== currentImageIndex) {
-                  setCurrentImageIndex(index);
-                }
-              }}
-            >
-              {multiImages.map((img, idx) => (
-                <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
-                  <img src={img} className="w-full h-full object-contain" />
-                </div>
-              ))}
-            </div>
-          ) : contentType ? (
-            <img 
-              src={activeSingleImage} 
-              alt="Content" 
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className="w-full h-full bg-black" />
-          )}
+        {/* Media Container: spacing and enlargement scaled from 1170x2532 baseline */}
+        <div
+          className="absolute inset-x-0 flex items-center justify-center overflow-hidden"
+          style={{ top: '16.27%', bottom: '22.12%' }}
+        >
+          <div className="w-full h-[105.85%] flex items-center justify-center">
+            {contentType === 'video' ? (
+              <video 
+                src={activeVideo} 
+                autoPlay 
+                loop 
+                muted 
+                playsInline
+                className="w-full h-full object-contain"
+              />
+            ) : contentType === 'multi' ? (
+              <div 
+                ref={scrollContainerRef}
+                className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+                onScroll={(e) => {
+                  const scrollLeft = e.currentTarget.scrollLeft;
+                  const width = e.currentTarget.clientWidth;
+                  const index = Math.round(scrollLeft / width);
+                  if (index !== currentImageIndex) {
+                    setCurrentImageIndex(index);
+                  }
+                }}
+              >
+                {multiImages.map((img, idx) => (
+                  <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
+                    <img src={img} className="w-full h-full object-contain" />
+                  </div>
+                ))}
+              </div>
+            ) : contentType ? (
+              <img 
+                src={activeSingleImage} 
+                alt="Content" 
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="w-full h-full bg-black" />
+            )}
+          </div>
         </div>
 
         {/* Content Type Selector Overlay */}
@@ -1392,31 +1425,40 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex items-center bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5 drop-shadow-md cursor-pointer active:scale-95 transition-transform">
-            <Music size={14} className="mr-1.5" />
-            <span className="text-[13px] font-semibold tracking-wide mr-2">STOLEN LOVE</span>
-            <X size={14} className="opacity-80" />
+          <div className="flex items-center h-10 bg-[#1A1C22]/95 rounded-full pl-3.5 pr-2.5 cursor-pointer active:scale-95 transition-transform">
+            <Music size={16} strokeWidth={2.2} className="text-white mr-2" />
+            <span className="text-[13px] font-[800] tracking-wide text-white">STOLEN LOVE</span>
+            <div className="w-px h-6 bg-white/18 mx-2.5" />
+            <X size={19} strokeWidth={2.2} className="text-white/90" />
           </div>
 
           <button className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:scale-90 transition-transform">
-            <Settings size={28} strokeWidth={2} />
+            <img 
+              src="/assets/icons/tools/settings.png" 
+              alt="Settings"
+              className="w-7 h-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            />
           </button>
         </div>
 
         {/* Right Sidebar */}
         <div className="absolute top-[100px] right-4 flex flex-col items-end z-10">
           <button className="flex flex-col items-center mb-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:scale-90 transition-transform">
-            <Share size={28} strokeWidth={2} />
+            <img 
+              src="/assets/icons/tools/share.png" 
+              alt="Share"
+                className="w-7 h-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            />
           </button>
 
-          <div className="w-4 h-[1px] bg-white/50 mb-5 drop-shadow-md" />
+            <div className="w-4 h-[1px] bg-white/50 mb-4 drop-shadow-md" />
           
           <div className="flex flex-col items-end">
             {tools.map((tool) => (
               <div 
                 key={tool.id}
                 className={`flex items-center justify-end cursor-pointer transition-all duration-300 overflow-hidden
-                  ${!isExpanded && tool.hiddenCollapsed ? 'h-0 opacity-0 mb-0' : 'h-8 opacity-100 mb-5'}`}
+                    ${!isExpanded && tool.hiddenCollapsed ? 'h-0 opacity-0 mb-0' : 'h-8 opacity-100 mb-4'}`}
               >
                 <span 
                   className={`text-[13px] font-semibold mr-2 transition-all duration-300 whitespace-nowrap
@@ -1425,8 +1467,18 @@ export default function App() {
                 >
                   {tool.label}
                 </span>
-                <div className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center justify-center w-8 h-8 shrink-0 hover:scale-110 active:scale-90 transition-transform">
-                  {tool.icon}
+                <div className="flex items-center justify-center w-7 h-7 shrink-0 hover:scale-110 active:scale-90 transition-transform">
+                  {tool.imageUrl ? (
+                    <img 
+                      src={tool.imageUrl} 
+                      alt={tool.label}
+                      className="w-7 h-7 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]" 
+                    />
+                  ) : (
+                    <div className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                      {tool.icon}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -1435,7 +1487,7 @@ export default function App() {
               className="flex items-center justify-end cursor-pointer transition-all duration-300 h-8" 
               onClick={() => setIsExpanded(!isExpanded)}
             >
-              <div className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center justify-center w-8 h-8 hover:scale-110 active:scale-90 transition-transform">
+              <div className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] flex items-center justify-center w-7 h-7 hover:scale-110 active:scale-90 transition-transform">
                 {isExpanded ? <ChevronUp size={28} strokeWidth={2} /> : <ChevronDown size={28} strokeWidth={2} />}
               </div>
             </div>
@@ -1446,7 +1498,7 @@ export default function App() {
         <div className={`absolute ${contentType === 'multi' ? 'bottom-[160px]' : 'bottom-[100px]'} inset-x-4 flex gap-3 items-center justify-end z-40 pointer-events-none transition-all duration-300`}>
           {/* AI Review On-Screen Feedback */}
           {showReviewUI && (
-            <div className="flex-1 flex items-center h-[56px] animate-fade-in-right pointer-events-auto">
+            <div className="flex-1 flex items-center min-h-[56px] animate-fade-in-right pointer-events-auto">
               <style>{`
                 @keyframes fadeInRight {
                   from { opacity: 0; transform: translateX(10px); }
@@ -1468,13 +1520,20 @@ export default function App() {
                   </div>
                   <span className="text-[13px] font-mono text-white/90">{Math.floor(reviewProgress)}%</span>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#00f2fe] to-[#FE2C55] transition-all duration-75 ease-linear rounded-full"
-                    style={{ width: `${reviewProgress}%` }}
-                  />
+
+                {/* Progress Bars: only display enabled checks */}
+                <div className="flex flex-col gap-1.5">
+                  {enabledReviewItems.map((item, index) => (
+                    <div key={item.key} className="flex items-center gap-2">
+                      <span className="w-8 text-[10px] text-white/70 leading-none">{item.label.slice(0, 2)}</span>
+                      <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#00f2fe] to-[#FE2C55] transition-all duration-75 ease-linear rounded-full"
+                          style={{ width: `${getReviewItemProgress(index)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1550,8 +1609,10 @@ export default function App() {
         {/* Bottom Bar */}
         <div className="absolute bottom-8 inset-x-4 flex space-x-3 z-10 h-[48px]">
           <button className="flex-1 flex items-center justify-center h-full bg-white text-black rounded-full px-1 font-semibold text-[14px] shadow-lg active:scale-95 transition-transform">
-            <div className="w-7 h-7 rounded-full p-[1.5px] bg-gradient-to-tr from-[#00f2fe] to-[#4facfe] mr-1.5 shrink-0">
-              <img src="https://i.pravatar.cc/150?img=47" alt="avatar" className="w-full h-full rounded-full border border-white object-cover" />
+            <div className="w-[29px] h-[29px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#00f2fe] to-[#4facfe] mr-1.5 shrink-0">
+              <div className="w-full h-full rounded-full border-2 border-white overflow-hidden">
+                <img src="https://i.pravatar.cc/150?img=47" alt="avatar" className="w-full h-full object-cover object-center block" />
+              </div>
             </div>
             <span className="tracking-tight">你的限时动态</span>
           </button>
@@ -1586,66 +1647,63 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative bg-[#161823]/80 backdrop-blur-[20px] rounded-t-2xl px-5 pt-6 pb-8 text-white shadow-2xl"
+              className="relative bg-[#161823]/80 backdrop-blur-[20px] rounded-t-2xl px-5 pt-4 pb-7 text-white shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[22px] font-[700] tracking-tight">AI 审查</h2>
+              <div className="relative flex items-center justify-center mb-3">
+                <h2 className="text-[18px] font-[700] tracking-tight">AI 审查</h2>
                 <button 
                   onClick={() => setShowAIPopup(false)}
-                  className="p-1.5 active:opacity-70 transition-opacity"
+                  className="absolute right-0 p-1.5 active:opacity-70 transition-opacity"
                 >
                   <X size={18} className="text-white/80" />
                 </button>
               </div>
 
-              <div className="flex flex-col mb-6">
-                <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                  <div className="shrink-0">
-                    <Eye size={24} strokeWidth={1.5} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5">视觉内容</h3>
-                    <p className="text-[13px] text-white/60">检测画面中的违规元素</p>
-                  </div>
-                </div>
+              <div className="h-[1px] bg-white/10 -mx-5 mb-4" />
 
-                <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                  <div className="shrink-0">
-                    <Volume2 size={24} strokeWidth={1.5} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5">音频轨道</h3>
-                    <p className="text-[13px] text-white/60">识别版权限制与违规声音</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 py-4 border-b border-white/10">
-                  <div className="shrink-0">
-                    <FileText size={24} strokeWidth={1.5} className="text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5">文字内容</h3>
-                    <p className="text-[13px] text-white/60">扫描字幕与文案中的敏感词</p>
-                  </div>
-                </div>
+              <div className="flex flex-col gap-4 mb-5">
+                {reviewItems.map((item) => {
+                  const enabled = reviewChecks[item.key];
+                  return (
+                    <div key={item.key} className="flex items-start gap-3 py-1">
+                      <div className="shrink-0 mt-0.5">
+                        {renderReviewIcon(item.key, 20, 1.8)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-[15px] font-semibold mb-0.5 leading-none">{item.label}</h3>
+                        <p className="text-[13px] text-white/60 leading-relaxed">{item.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleReviewCheck(item.key)}
+                        className={`relative w-9 h-5 p-[2px] rounded-full shrink-0 self-start mt-0.5 transition-colors ${enabled ? 'bg-[#2FD1E9]' : 'bg-white/25'}`}
+                        aria-label={`${item.label}开关`}
+                      >
+                        <span className={`block w-4 h-4 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.25)] transition-transform ${enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="mb-6 space-y-3">
-                <p className="text-[13px] text-white/60 leading-relaxed">
-                  审查可能需要几分钟。较长视频可先返回，存草稿后台检测。
-                </p>
-                <p className="text-[11px] text-white/40 leading-relaxed">
-                  声明：本功能帮助你在发布前主动发现常见风险，不代替平台的正式审核流程。平台审核以实际发布后的结果为准。
-                </p>
+              <div className="mb-5">
+                <div className="flex items-start gap-2 text-[11px] text-white/40 leading-relaxed">
+                  <Volume2 size={12} strokeWidth={2} className="text-white/50 shrink-0 mt-[2px]" />
+                  <p>
+                    声明：本功能帮助你在发布前主动发现常见风险，不代替平台的正式审核流程。平台审核以实际发布后的结果为准。
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-col gap-3">
                 <button 
                   onClick={() => {
+                    if (enabledReviewItems.length === 0) {
+                      return;
+                    }
                     setShowAIPopup(false);
                     startReview();
                   }}
-                  className="w-full py-3.5 rounded-full font-semibold text-[15px] bg-[#FE2C55] text-white active:bg-[#FE2C55]/90 transition-colors"
+                  className={`w-full py-3.5 rounded-full font-semibold text-[15px] transition-colors ${enabledReviewItems.length === 0 ? 'bg-[#FE2C55]/40 text-white/60 cursor-not-allowed' : 'bg-[#FE2C55] text-white active:bg-[#FE2C55]/90'}`}
                 >
                   开始检测
                 </button>
@@ -1669,47 +1727,42 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative bg-[#161823]/95 backdrop-blur-[20px] rounded-t-2xl px-5 pt-4 pb-8 text-white shadow-2xl"
+              className="relative bg-[#161823]/80 backdrop-blur-[20px] rounded-t-2xl px-5 pt-4 pb-7 text-white shadow-2xl"
             >
-              {/* Drag Handle */}
-              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
-
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[20px] font-[700] tracking-tight">发现注意项</h2>
+              <div className="relative flex items-center justify-center mb-3">
+                <h2 className="text-[18px] font-[700] tracking-tight">发现注意项</h2>
                 <button 
                   onClick={() => setShowRiskPopup(false)}
-                  className="p-1.5 active:opacity-70 transition-opacity bg-white/10 rounded-full"
+                  className="absolute right-0 p-1.5 active:opacity-70 transition-opacity"
                 >
-                  <X size={16} className="text-white/80" />
+                  <X size={18} className="text-white/80" />
                 </button>
               </div>
 
-              <p className="text-[14px] text-white/80 mb-6 leading-relaxed">
-                发现2个注意项，建议修复后发布，以免影响分发
-              </p>
+              <div className="h-[1px] bg-white/10 -mx-5 mb-4" />
 
-              <div className="flex flex-col gap-4 mb-8">
-                <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+              <div className="flex flex-col gap-4 mb-5">
+                <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
                   <div className="shrink-0 mt-0.5">
                     <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
                       <Volume2 size={16} className="text-[#FE2C55]" />
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold mb-1">音乐版权受区域限制</h3>
-                    <p className="text-[12px] text-white/60 leading-relaxed">部分地区用户无法收听</p>
+                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">音乐版权受区域限制</h3>
+                    <p className="text-[13px] text-white/60 leading-relaxed">部分地区用户无法收听</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
                   <div className="shrink-0 mt-0.5">
                     <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
                       <FileText size={16} className="text-[#FE2C55]" />
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-semibold mb-1">文案含敏感词</h3>
-                    <p className="text-[12px] text-white/60 leading-relaxed">「减肥」类话题限制分发</p>
+                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">文案含敏感词</h3>
+                    <p className="text-[13px] text-white/60 leading-relaxed">「减肥」类话题限制分发</p>
                   </div>
                 </div>
               </div>
