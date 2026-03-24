@@ -1255,6 +1255,19 @@ export default function App() {
           0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
           100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
         }
+        @keyframes ribbonBurst {
+          0% {
+            transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+            opacity: 0;
+          }
+          18% {
+            opacity: 0.85;
+          }
+          100% {
+            transform: translate(var(--tx), var(--ty)) scale(1) rotate(var(--rot));
+            opacity: 0;
+          }
+        }
         @keyframes celebratePop {
           0% { transform: scale(0.8); opacity: 0; }
           50% { transform: scale(1.05); opacity: 1; }
@@ -1371,35 +1384,50 @@ export default function App() {
 
         {/* Success Celebration Overlay */}
         {showSuccessCelebration && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden rounded-[32px]">
-            {/* Confetti Particles */}
-            {[...Array(40)].map((_, i) => {
-              const isCircle = i % 3 === 0;
+          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden rounded-[32px] bg-black/35">
+            {/* Celebratory Ribbons */}
+            {[...Array(16)].map((_, i) => {
+              const angle = (i / 16) * Math.PI * 2;
+              const distance = 84 + (i % 4) * 24;
+              const tx = Math.cos(angle) * distance;
+              const ty = Math.sin(angle) * distance;
+              const rot = (i % 2 === 0 ? -1 : 1) * (18 + (i % 5) * 10);
               return (
                 <div
-                  key={i}
+                  key={`ribbon-${i}`}
                   className="absolute"
                   style={{
-                    left: `${Math.random() * 100}%`,
-                    top: '-10%',
-                    width: isCircle ? '8px' : '6px',
-                    height: isCircle ? '8px' : '16px',
-                    borderRadius: isCircle ? '50%' : '2px',
-                    backgroundColor: ['#FE2C55', '#00f2fe', '#00D27A', '#FFD700', '#FF9900', '#A200FF'][i % 6],
-                    animation: `confettiFall ${1.5 + Math.random() * 2}s linear forwards`,
-                    animationDelay: `${Math.random() * 0.5}s`,
-                  }}
+                    left: '50%',
+                    top: '50%',
+                    width: `${3 + (i % 2)}px`,
+                    height: `${16 + (i % 3) * 4}px`,
+                    borderRadius: '999px',
+                    background: [
+                      'linear-gradient(180deg,#00F2EA,#00C2FF)',
+                      'linear-gradient(180deg,#FE2C55,#FF6A88)',
+                      'linear-gradient(180deg,#FFD84D,#FFAE3D)',
+                      'linear-gradient(180deg,#33E6B0,#00C9A7)'
+                    ][i % 4],
+                    '--tx': `calc(-50% + ${tx.toFixed(1)}px)`,
+                    '--ty': `calc(-50% + ${ty.toFixed(1)}px)`,
+                    '--rot': `${rot}deg`,
+                    animation: `ribbonBurst ${0.72 + (i % 4) * 0.12}s cubic-bezier(0.2,0.8,0.2,1) forwards`,
+                    animationDelay: `${(i % 6) * 0.04}s`,
+                    opacity: 0,
+                  } as React.CSSProperties}
                 />
               );
             })}
-            
+
             {/* Success Card */}
-            <div className="bg-black/45 backdrop-blur-sm border border-[#00D27A]/40 rounded-[28px] px-8 py-6 flex flex-col items-center shadow-[0_0_50px_rgba(0,210,122,0.2)] animate-celebrate-pop">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#00D27A]/30 to-[#00D27A]/10 rounded-full flex items-center justify-center mb-4 shadow-inner border border-[#00D27A]/50">
-                <Sparkles size={32} className="text-[#00D27A]" />
+            <div className="w-[74%] max-w-[430px] bg-white rounded-[12px] px-8 pt-[28px] pb-6 flex flex-col items-center shadow-[0_20px_60px_rgba(0,0,0,0.35)] animate-celebrate-pop">
+              <div className="relative w-[72px] h-[52px] mb-6">
+                <Sparkles size={34} strokeWidth={2.2} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#2DD4DD]" />
+                <Sparkles size={16} strokeWidth={2.3} className="absolute left-[4px] top-[4px] text-[#26BFF0]" />
+                <Sparkles size={14} strokeWidth={2.3} className="absolute left-[14px] bottom-[2px] text-[#3AE6C8]" />
               </div>
-              <h3 className="text-[20px] font-bold text-white mb-2 tracking-wide">审查通过</h3>
-              <p className="text-[14px] text-white/80 font-medium">审查通过快去发布吧！🎉</p>
+              <h3 className="text-[16px] leading-[1.2] font-bold text-black mb-3 tracking-[0.2px]">审查通过</h3>
+              <p className="text-[14px] leading-[1.45] text-[#7B7B84] font-medium text-center">内容通过审核，继续发布即可。</p>
             </div>
           </div>
         )}
@@ -1625,7 +1653,7 @@ export default function App() {
 
         {/* Multi-image indicator */}
         {contentType === 'multi' && (
-          <div className="absolute bottom-[90px] inset-x-0 flex justify-center items-end gap-3 z-30 pointer-events-auto">
+          <div className="absolute bottom-[102px] inset-x-0 flex justify-center items-end gap-3 z-30 pointer-events-auto">
             {/* Grid Icon */}
             <div className="w-10 h-10 rounded-[10px] bg-black/50 backdrop-blur-md flex items-center justify-center mb-1">
               <Grid size={20} className="text-white" />
