@@ -47,7 +47,6 @@ import {
   MessageSquare,
   Instagram,
   Mail,
-  Grid,
   ArrowRight,
   Check,
   Edit2,
@@ -90,8 +89,16 @@ export default function App() {
     text: true,
   });
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [fixThumbnailOffsetX, setFixThumbnailOffsetX] = useState(0);
+  const [editorThumbnailOffsetX, setEditorThumbnailOffsetX] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const currentImageIndexRef = React.useRef(0);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const fixScrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const fixThumbnailViewportRef = React.useRef<HTMLDivElement>(null);
+  const fixThumbnailTrackRef = React.useRef<HTMLDivElement>(null);
+  const editorThumbnailViewportRef = React.useRef<HTMLDivElement>(null);
+  const editorThumbnailTrackRef = React.useRef<HTMLDivElement>(null);
 
   const reviewItems: Array<{ key: ReviewCheckKey; label: string; desc: string; statusText: string }> = [
     { key: 'visual', label: '视觉内容', desc: '检测画面中的违规元素', statusText: '视觉画面分析中...' },
@@ -100,6 +107,12 @@ export default function App() {
   ];
 
   const enabledReviewItems = reviewItems.filter(item => reviewChecks[item.key]);
+
+  const FlatChevronUpIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 16 12" className={`w-4 h-3 -scale-y-100 ${className}`} fill="none" aria-hidden="true">
+      <path d="M2.5 8.5L8 5.5L13.5 8.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 
   const renderReviewIcon = (key: ReviewCheckKey, size = 20, strokeWidth = 1.8) => {
     if (key === 'visual') return <Eye size={size} strokeWidth={strokeWidth} className="text-white" />;
@@ -120,6 +133,17 @@ export default function App() {
     if (scrollContainerRef.current) {
       const width = scrollContainerRef.current.clientWidth;
       scrollContainerRef.current.scrollTo({
+        left: width * index,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleFixThumbnailClick = (index: number) => {
+    setCurrentImageIndex(index);
+    if (fixScrollContainerRef.current) {
+      const width = fixScrollContainerRef.current.clientWidth;
+      fixScrollContainerRef.current.scrollTo({
         left: width * index,
         behavior: 'smooth'
       });
@@ -156,6 +180,10 @@ export default function App() {
   const activeSingleImage = selectedOutcome ? mediaLibrary[selectedOutcome].single : defaultMultiImages[0];
   const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
   const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+
+  useEffect(() => {
+    currentImageIndexRef.current = currentImageIndex;
+  }, [currentImageIndex]);
 
   const selectScenario = (nextType: ContentType, nextOutcome: ReviewOutcome) => {
     setContentType(nextType);
@@ -245,6 +273,86 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [isUploading]);
+
+  useEffect(() => {
+    if (contentType !== 'multi') return;
+    if (currentView !== 'editor' && currentView !== 'fix') return;
+    if (currentView === 'fix' && selectedOutcome === 'risk') return;
+    if (multiImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      const nextIndex = (currentImageIndexRef.current + 1) % multiImages.length;
+      const container = currentView === 'fix' ? fixScrollContainerRef.current : scrollContainerRef.current;
+      if (container) {
+        const width = container.clientWidth;
+        container.scrollTo({
+          left: width * nextIndex,
+          behavior: 'smooth'
+        });
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [contentType, currentView, selectedOutcome, multiImages.length]);
+
+  useEffect(() => {
+    if (contentType !== 'multi' || currentView !== 'fix') return;
+
+    if (selectedOutcome !== 'risk') {
+      setFixThumbnailOffsetX(0);
+      return;
+    }
+
+    const updateFixThumbnailOffset = () => {
+      const viewport = fixThumbnailViewportRef.current;
+      const track = fixThumbnailTrackRef.current;
+      if (!viewport || !track) return;
+
+      const activeThumb = track.querySelector(`[data-thumb-index="${currentImageIndex}"]`) as HTMLElement | null;
+      if (!activeThumb) return;
+
+      const trackRect = track.getBoundingClientRect();
+      const thumbRect = activeThumb.getBoundingClientRect();
+      const thumbCenterInTrack = thumbRect.left - trackRect.left + thumbRect.width / 2;
+      const targetOffset = viewport.clientWidth / 2 - thumbCenterInTrack;
+      setFixThumbnailOffsetX(targetOffset);
+    };
+
+    const rafId = requestAnimationFrame(updateFixThumbnailOffset);
+    window.addEventListener('resize', updateFixThumbnailOffset);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateFixThumbnailOffset);
+    };
+  }, [contentType, currentView, selectedOutcome, currentImageIndex, multiImages.length]);
+
+  useEffect(() => {
+    if (contentType !== 'multi' || currentView !== 'editor') return;
+
+    const updateEditorThumbnailOffset = () => {
+      const viewport = editorThumbnailViewportRef.current;
+      const track = editorThumbnailTrackRef.current;
+      if (!viewport || !track) return;
+
+      const activeThumb = track.querySelector(`[data-thumb-index="${currentImageIndex}"]`) as HTMLElement | null;
+      if (!activeThumb) return;
+
+      const trackRect = track.getBoundingClientRect();
+      const thumbRect = activeThumb.getBoundingClientRect();
+      const thumbCenterInTrack = thumbRect.left - trackRect.left + thumbRect.width / 2;
+      const targetOffset = viewport.clientWidth / 2 - thumbCenterInTrack;
+      setEditorThumbnailOffsetX(targetOffset);
+    };
+
+    const rafId = requestAnimationFrame(updateEditorThumbnailOffset);
+    window.addEventListener('resize', updateEditorThumbnailOffset);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updateEditorThumbnailOffset);
+    };
+  }, [contentType, currentView, currentImageIndex, multiImages.length]);
 
   const startReview = () => {
     if (enabledReviewItems.length === 0) {
@@ -980,32 +1088,58 @@ export default function App() {
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
               {/* Media Viewport Container */}
               <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0">
-                <img 
-                  src={contentType === 'multi' ? multiImages[currentImageIndex] : activeSingleImage} 
-                  className="w-full h-full object-contain"
-                  alt="Media"
-                />
+                {contentType === 'multi' ? (
+                  <div
+                    ref={fixScrollContainerRef}
+                    className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+                    onScroll={(e) => {
+                      const scrollLeft = e.currentTarget.scrollLeft;
+                      const width = e.currentTarget.clientWidth;
+                      const index = Math.round(scrollLeft / width);
+                      if (index !== currentImageIndex) {
+                        setCurrentImageIndex(index);
+                      }
+                    }}
+                  >
+                    {multiImages.map((img, idx) => (
+                      <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
+                        <img src={img} className="w-full h-full object-contain" alt={`Media ${idx + 1}`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <img
+                    src={activeSingleImage}
+                    className="w-full h-full object-contain"
+                    alt="Media"
+                  />
+                )}
               </div>
 
               {/* Bottom Tool Area */}
               <div className="w-full mt-6 flex flex-col flex-1">
                 {/* Thumbnail Preview (center aligned, no side icons) */}
                 {contentType === 'multi' && (
-                  <div className="w-full flex justify-center mt-auto">
-                    <div className="flex items-end gap-2">
+                  <div ref={fixThumbnailViewportRef} className="w-full mt-auto overflow-hidden px-2">
+                    <div
+                      ref={fixThumbnailTrackRef}
+                      className="w-max min-w-full flex items-end justify-center gap-[6px] transition-transform duration-300 ease-out"
+                      style={{ transform: `translateX(${fixThumbnailOffsetX}px)` }}
+                    >
                       {multiImages.map((img, idx) => {
                         const isActive = currentImageIndex === idx;
                         const isRiskImage = !isAllFixed && fixStep === 1 && idx === 0;
                         return (
                           <div key={idx} className="relative flex flex-col items-center justify-end h-[64px]">
                             {isActive && (
-                              <motion.div layoutId="fix-active-chevron" className="absolute top-0">
-                                <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
+                              <motion.div layoutId="fix-active-chevron" className="absolute -top-[2px]">
+                                <FlatChevronUpIcon className="text-white drop-shadow-md" />
                               </motion.div>
                             )}
                             <button
-                              onClick={() => setCurrentImageIndex(idx)}
-                              className={`rounded-[10px] overflow-hidden transition-all duration-300 ${
+                              onClick={() => handleFixThumbnailClick(idx)}
+                              data-thumb-index={idx}
+                              className={`rounded-[12px] overflow-hidden transition-all duration-300 ${
                                 isActive
                                   ? `w-12 h-12 border-[2px] ${isRiskImage ? 'border-[#FE2C55]' : 'border-white'}`
                                   : `w-10 h-10 border ${isRiskImage ? 'border-[#FE2C55] opacity-100' : 'border-transparent opacity-60'} mb-1`
@@ -1021,12 +1155,12 @@ export default function App() {
                 )}
                 {contentType === 'single' && (
                   <div className="w-full flex justify-center mt-auto">
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-end gap-[6px]">
                       <div className="relative flex flex-col items-center justify-end h-[64px]">
-                        <motion.div layoutId="fix-active-chevron" className="absolute top-0">
-                          <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
+                        <motion.div layoutId="fix-active-chevron" className="absolute -top-[2px]">
+                          <FlatChevronUpIcon className="text-white drop-shadow-md" />
                         </motion.div>
-                        <div className={`w-12 h-12 rounded-[10px] overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
+                        <div className={`w-12 h-12 rounded-[12px] overflow-hidden shrink-0 relative border-2 ${!isAllFixed && fixStep === 1 ? 'border-[#FE2C55]' : 'border-white'}`}>
                           <img src={activeSingleImage} className="w-full h-full object-cover" />
                         </div>
                       </div>
@@ -1653,41 +1787,49 @@ export default function App() {
 
         {/* Multi-image indicator */}
         {contentType === 'multi' && (
-          <div className="absolute bottom-[102px] inset-x-0 flex justify-center items-end gap-3 z-30 pointer-events-auto">
-            {/* Grid Icon */}
-            <div className="w-10 h-10 rounded-[10px] bg-black/50 backdrop-blur-md flex items-center justify-center mb-1">
-              <Grid size={20} className="text-white" />
-            </div>
-            
-            {/* Thumbnails */}
-            <div className="flex items-end gap-2">
-              {multiImages.map((img, idx) => {
-                const isActive = currentImageIndex === idx;
-                return (
-                  <div key={idx} className="relative flex flex-col items-center justify-end h-[64px]">
-                    {isActive && (
-                      <motion.div layoutId="active-chevron" className="absolute top-0">
-                        <ChevronUp size={16} className="text-white drop-shadow-md" strokeWidth={4} />
-                      </motion.div>
-                    )}
-                    <div 
-                      onClick={() => handleThumbnailClick(idx)}
-                      className={`rounded-[10px] overflow-hidden transition-all duration-300 cursor-pointer ${
-                        isActive 
-                          ? 'w-12 h-12 border-[2px] border-white' 
-                          : 'w-10 h-10 border border-transparent opacity-60 mb-1'
-                      }`}
-                    >
-                      <img src={img} className="w-full h-full object-cover" />
-                    </div>
+          <div className="absolute bottom-[102px] inset-x-0 z-30 pointer-events-auto px-2">
+            <div ref={editorThumbnailViewportRef} className="w-full overflow-hidden">
+              <div
+                ref={editorThumbnailTrackRef}
+                className="w-max flex items-end justify-center gap-[6px] px-1 transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(${editorThumbnailOffsetX}px)` }}
+              >
+                <div className="w-10 h-10 rounded-[12px] bg-[#1A1C22]/95 flex items-center justify-center mb-1 shrink-0">
+                  <div className="grid grid-cols-2 gap-[2px]">
+                    {[...Array(4)].map((_, i) => (
+                      <span key={i} className="w-[5px] h-[5px] rounded-[1px] border border-white/95" />
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
 
-            {/* Plus Icon */}
-            <div className="w-10 h-10 rounded-[10px] bg-black/50 backdrop-blur-md flex items-center justify-center mb-1">
-              <Plus size={22} className="text-white" />
+                {multiImages.map((img, idx) => {
+                  const isActive = currentImageIndex === idx;
+                  return (
+                    <div key={idx} className="relative flex flex-col items-center justify-end h-[64px] shrink-0">
+                      {isActive && (
+                        <motion.div layoutId="active-chevron" className="absolute -top-[2px]">
+                          <FlatChevronUpIcon className="text-white drop-shadow-md" />
+                        </motion.div>
+                      )}
+                      <div
+                        onClick={() => handleThumbnailClick(idx)}
+                        data-thumb-index={idx}
+                        className={`rounded-[12px] overflow-hidden transition-all duration-300 cursor-pointer ${
+                          isActive
+                            ? 'w-12 h-12 border-[2px] border-white'
+                            : 'w-10 h-10 border border-transparent opacity-60 mb-1'
+                        }`}
+                      >
+                        <img src={img} className="w-full h-full object-cover" />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="w-10 h-10 rounded-[12px] bg-[#1A1C22]/95 flex items-center justify-center mb-1 shrink-0">
+                  <Plus size={22} className="text-white" />
+                </div>
+              </div>
             </div>
           </div>
         )}
