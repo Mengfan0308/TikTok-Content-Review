@@ -111,6 +111,7 @@ export default function App() {
   const [focusedTextSwitchTime, setFocusedTextSwitchTime] = useState(0);
   const [timelineAnimationCycle, setTimelineAnimationCycle] = useState(0);
   const [shouldStartFromSwitchPoint, setShouldStartFromSwitchPoint] = useState(false);
+  const [fixVideoCurrentTime, setFixVideoCurrentTime] = useState(0);
   const currentImageIndexRef = React.useRef(0);
   const editorVideoRef = React.useRef<HTMLVideoElement>(null);
   const fixVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -145,6 +146,13 @@ export default function App() {
   const SolidTextIcon = ({ className = '' }: { className?: string }) => (
     <svg viewBox="0 0 92 92" className={className} fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
       <path d="M85.375 2C87.9297 2 90 4.07088 90 6.625V21C90 24.3137 87.3135 27 84 27H81.5C78.1865 27 75.5 24.3137 75.5 21V18.5C75.5 17.3955 74.6045 16.5 73.5 16.5H55.25C54.1455 16.5 53.25 17.3955 53.25 18.5V73.5C53.25 74.6045 54.1455 75.5 55.25 75.5H63C66.3136 75.5 69 78.1864 69 81.5V84C69 87.3136 66.3136 90 63 90H29C25.6863 90 23 87.3135 23 84V81.5C23 78.1865 25.6863 75.5 29 75.5H36.75C37.8545 75.5 38.75 74.6045 38.75 73.5V18.5C38.75 17.3955 37.8545 16.5 36.75 16.5H18.5C17.3955 16.5 16.5 17.3955 16.5 18.5V21C16.5 24.3137 13.8137 27 10.5 27H8C4.68633 27 2 24.3137 2 21V8C2 4.68633 4.68633 2 8 2H85.375Z" fill="currentColor" stroke="currentColor" strokeWidth="4" />
+    </svg>
+  );
+
+  const DepressedMarkerIcon = ({ className = '', style }: { className?: string; style?: React.CSSProperties }) => (
+    <svg viewBox="0 0 103 121" className={className} style={style} fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M51.382 116.689C50.6229 116.689 49.8939 116.394 49.3473 115.868L49.3186 115.839L17.8756 84.5114L17.875 84.5108C4.33056 71.0246 0.279003 50.7437 7.60044 33.1243C14.923 15.5023 32.1881 4.00005 51.3527 4C70.5173 4 87.7826 15.5038 95.1049 33.1261C102.427 50.7455 98.3749 71.0252 84.8349 84.5079L84.8326 84.5102L53.4477 115.836C52.8983 116.382 52.1559 116.689 51.382 116.689Z" fill="#FE7260" stroke="white" strokeWidth="8" />
+      <path d="M74.5145 35.0645C75.645 35.0645 76.5594 35.9833 76.5594 37.1133V45.5947C76.5592 47.1727 75.2827 48.4541 73.7059 48.4541H72.2352C70.6585 48.4539 69.3828 47.1726 69.3826 45.5947V44.1191C69.3825 43.0908 68.5516 42.26 67.5301 42.2598H56.7947C55.7729 42.2598 54.9414 43.0906 54.9412 44.1191V76.5693C54.9412 77.5979 55.7728 78.4297 56.7947 78.4297H61.3533C62.9301 78.4298 64.2057 79.7113 64.2059 81.2891V82.7646C64.2058 84.3425 62.9302 85.6239 61.3533 85.624H41.3533C39.7764 85.624 38.4999 84.3426 38.4998 82.7646V81.2891C38.5 79.7112 39.7764 78.4297 41.3533 78.4297H45.9119C46.9338 78.4297 47.7645 77.5979 47.7645 76.5693V44.1191C47.7643 43.0906 46.9337 42.2598 45.9119 42.2598H35.1766C34.1548 42.2598 33.3242 43.0907 33.324 44.1191V45.5947C33.3239 47.1727 32.0475 48.4541 30.4705 48.4541H28.9998C27.4231 48.4539 26.1474 47.1726 26.1473 45.5947V37.9248L26.1619 37.6318C26.3081 36.191 27.5217 35.0647 28.9998 35.0645H74.5145Z" fill="white" stroke="white" />
     </svg>
   );
 
@@ -215,11 +223,13 @@ export default function App() {
       ? e.currentTarget.duration
       : 3;
     setFixTimelineDuration(duration);
+    setFixVideoCurrentTime(e.currentTarget.currentTime || 0);
 
     if (pendingFixSeekTime !== null) {
       e.currentTarget.currentTime = Math.min(Math.max(pendingFixSeekTime, 0), duration);
       e.currentTarget.pause();
       setIsPlaying(false);
+      setFixVideoCurrentTime(Math.min(Math.max(pendingFixSeekTime, 0), duration));
       setPendingFixSeekTime(null);
     }
   };
@@ -232,10 +242,13 @@ export default function App() {
     setIsPlaying(false);
 
     if (Number.isFinite(video.duration) && video.duration > 0) {
-      video.currentTime = Math.min(Math.max(targetTime, 0), video.duration);
+      const clampedTime = Math.min(Math.max(targetTime, 0), video.duration);
+      video.currentTime = clampedTime;
+      setFixVideoCurrentTime(clampedTime);
       return;
     }
 
+    setFixVideoCurrentTime(Math.max(targetTime, 0));
     setPendingFixSeekTime(targetTime);
   };
 
@@ -268,6 +281,7 @@ export default function App() {
       const isAtEnd = Number.isFinite(video.duration) && video.duration > 0 && video.currentTime >= video.duration - 0.05;
       if (isAtEnd) {
         video.currentTime = 0;
+        setFixVideoCurrentTime(0);
         setManualTimelineShiftPx(0);
         setTimelineAnimationCycle(prev => prev + 1);
       }
@@ -451,7 +465,18 @@ export default function App() {
   const totalRiskCount = 2;
   const fixedRiskCount = Number(!hasTextRisk) + Number(!hasMusicRisk);
   const isVideoHintVisible = (activeRiskHint === 'text' && hasTextRisk) || (activeRiskHint === 'music' && hasMusicRisk);
+  const depressedMarkerWidthPct = 20;
+  const depressedMarkerGapPct = (12 / 2532) * 100;
+  const depressedSwitchTime = focusedTextSwitchTime > 0 ? focusedTextSwitchTime : 2;
+  const shouldShowDepressedMarker =
+    contentType === 'video' &&
+    selectedOutcome === 'risk' &&
+    fixedRiskVideo === null &&
+    hasTextRisk &&
+    fixVideoCurrentTime >= depressedSwitchTime &&
+    fixVideoCurrentTime < Math.max(fixTimelineDuration - 0.05, depressedSwitchTime + 0.01);
   const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
+  const publishVideoThumbnail = videoTrackFrames[0] ?? activeSingleImage;
   const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
   const videoFramesToRender = videoTrackFrames.length > 0
     ? videoTrackFrames
@@ -486,6 +511,7 @@ export default function App() {
     setFocusedTextSwitchTime(0);
     setTimelineAnimationCycle(0);
     setShouldStartFromSwitchPoint(false);
+    setFixVideoCurrentTime(0);
     setSelectedTimelineTrack(null);
     setTimelineHistory([]);
     setTimelineHistoryIndex(-1);
@@ -889,7 +915,7 @@ export default function App() {
             {/* Media Preview Row */}
             <div className="px-4 flex gap-3 mb-6">
               <div className="w-[120px] h-[120px] rounded-2xl overflow-hidden relative bg-gray-100">
-                <img src={activeSingleImage} alt="preview" className="w-full h-full object-cover" />
+                <img src={contentType === 'video' ? publishVideoThumbnail : activeSingleImage} alt="preview" className="w-full h-full object-cover" />
               </div>
               <div className="w-[120px] h-[120px] rounded-2xl bg-gray-100 flex items-center justify-center active:bg-gray-200 transition-colors cursor-pointer">
                 <Plus size={32} className="text-gray-400" />
@@ -1028,11 +1054,24 @@ export default function App() {
         <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
           {/* Full Screen Background */}
           <div className="absolute inset-0 z-0">
-            <img 
-              src={uploadComplete ? activeSingleImage : (multiImages[1] ?? activeSingleImage)} 
-              alt="Friends Content" 
-              className="w-full h-full object-cover transition-all duration-500"
-            />
+            {contentType === 'video' && uploadComplete ? (
+              <video
+                src={previewVideo}
+                autoPlay
+                loop
+                onLoadedMetadata={(e) => {
+                  e.currentTarget.volume = 0.7;
+                }}
+                playsInline
+                className="w-full h-auto object-contain transition-all duration-500 translate-y-[140px]"
+              />
+            ) : (
+              <img 
+                src={contentType === 'video' ? publishVideoThumbnail : (uploadComplete ? activeSingleImage : (multiImages[1] ?? activeSingleImage))} 
+                alt="Friends Content" 
+                className="w-full h-full object-cover transition-all duration-500"
+              />
+            )}
             {/* Gradient Overlay for text readability */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
           </div>
@@ -1123,7 +1162,7 @@ export default function App() {
                 {isUploading && !uploadComplete && (
                   <div className="relative w-[72px] h-[96px] rounded-xl overflow-hidden shadow-lg border-2 border-white/80 mt-4">
                     <img 
-                      src={activeSingleImage} 
+                      src={contentType === 'video' ? publishVideoThumbnail : activeSingleImage} 
                       alt="Uploading" 
                       className="absolute inset-0 w-full h-full object-cover opacity-80"
                     />
@@ -1158,8 +1197,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-white drop-shadow-md">
                 <span className="font-semibold text-[15px]">{uploadComplete ? "Fifi" : "Lucy"}</span>
                 <div className="flex items-center gap-1 text-white/90 text-[14px]">
-                  <Aperture size={14} />
-                  <span>动态照片 · {uploadComplete ? "1 秒前" : "23 分钟前"}</span>
+                  <span>{contentType === 'video' ? `视频 · ${uploadComplete ? "1 秒前" : "23 分钟前"}` : `动态照片 · ${uploadComplete ? "1 秒前" : "23 分钟前"}`}</span>
                 </div>
               </div>
             </div>
@@ -1297,7 +1335,7 @@ export default function App() {
           <div className="p-4 flex gap-4 border-b border-gray-100">
             <div className="w-24 h-32 bg-gray-200 rounded-lg overflow-hidden shrink-0">
               {contentType === 'video' ? (
-                <video src={activeVideo} className="w-full h-full object-cover" />
+                <img src={publishVideoThumbnail} className="w-full h-full object-cover" />
               ) : (
                 <img src={contentType === 'multi' ? multiImages[0] : activeSingleImage} className="w-full h-full object-cover" />
               )}
@@ -1364,11 +1402,24 @@ export default function App() {
                     autoPlay={isPlaying} 
                     playsInline
                     onLoadedMetadata={handleVideoVolumeReady}
+                    onTimeUpdate={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
+                    onSeeked={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
-                    onEnded={() => setIsPlaying(false)}
+                    onEnded={(e) => {
+                      setIsPlaying(false);
+                      setFixVideoCurrentTime(e.currentTarget.duration || fixTimelineDuration);
+                    }}
                     className="w-full max-h-full h-auto object-contain object-center"
                   />
+                  {shouldShowDepressedMarker && (
+                    <div
+                      className="absolute left-1/2 z-20 pointer-events-none"
+                      style={{ bottom: '18%', transform: `translate(calc(-50% + 90px), calc(-100% - ${depressedMarkerGapPct}%))` }}
+                    >
+                      <DepressedMarkerIcon style={{ width: `${depressedMarkerWidthPct}%`, height: 'auto' }} className="block" />
+                    </div>
+                  )}
                   {isReplacingVideo && (
                     <div className="absolute inset-0 bg-black/45 flex items-center justify-center z-20">
                       <Loader2 size={30} className="text-white animate-spin" />
@@ -2384,7 +2435,7 @@ export default function App() {
               <div className="absolute left-1/2 top-1/2 w-[30px] h-[30px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" />
               <div className="absolute left-1/2 top-1/2 w-[24px] h-[24px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2px] border-white" />
               <div className="absolute left-1/2 top-1/2 w-[20px] h-[20px] -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden">
-                <img src="https://i.pravatar.cc/150?img=47" alt="avatar" className="w-full h-full object-cover object-center block" />
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop" alt="avatar" className="w-full h-full object-cover object-center block" />
               </div>
             </div>
             <span className="tracking-tight">你的限时动态</span>
