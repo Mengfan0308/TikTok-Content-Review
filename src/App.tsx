@@ -112,6 +112,7 @@ export default function App() {
   const [timelineAnimationCycle, setTimelineAnimationCycle] = useState(0);
   const [shouldStartFromSwitchPoint, setShouldStartFromSwitchPoint] = useState(false);
   const [fixVideoCurrentTime, setFixVideoCurrentTime] = useState(0);
+  const [aiReviewIconPhase, setAiReviewIconPhase] = useState<'intro' | 'loop'>('intro');
   const currentImageIndexRef = React.useRef(0);
   const editorVideoRef = React.useRef<HTMLVideoElement>(null);
   const fixVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -476,6 +477,8 @@ export default function App() {
     fixVideoCurrentTime >= depressedSwitchTime &&
     fixVideoCurrentTime < Math.max(fixTimelineDuration - 0.05, depressedSwitchTime + 0.01);
   const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
+  const aiReviewIconIntroVideo = '/assets/ai/review/icon-intro.mp4';
+  const aiReviewIconLoopVideo = '/assets/ai/review/icon-loop.mp4';
   const publishVideoThumbnail = videoTrackFrames[0] ?? activeSingleImage;
   const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
   const videoFramesToRender = videoTrackFrames.length > 0
@@ -861,11 +864,26 @@ export default function App() {
     if (enabledReviewItems.length === 0) {
       return;
     }
+    setAiReviewIconPhase('intro');
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
     setReviewResult(selectedOutcome ?? 'safe');
   };
+
+  const stopReview = (resetProgress = true) => {
+    setIsReviewing(false);
+    setShowReviewUI(false);
+    if (resetProgress) {
+      setReviewProgress(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!isReviewing) {
+      setAiReviewIconPhase('intro');
+    }
+  }, [isReviewing]);
 
   const toggleReviewCheck = (key: ReviewCheckKey) => {
     setReviewChecks(prev => ({ ...prev, [key]: !prev[key] }));
@@ -2192,9 +2210,7 @@ export default function App() {
                     onClick={() => {
                       setShowBackMenu(false);
                       if (isReviewing) {
-                        setIsReviewing(false);
-                        setShowReviewUI(false);
-                        setReviewProgress(0);
+                        stopReview();
                       }
                       setCurrentView('home');
                     }}
@@ -2207,7 +2223,7 @@ export default function App() {
                     onClick={() => {
                       setShowBackMenu(false);
                       if (isReviewing) {
-                        setShowReviewUI(false);
+                        stopReview();
                       }
                       setCurrentView('home');
                     }}
@@ -2228,15 +2244,13 @@ export default function App() {
             )}
           </div>
 
-          <div className={`flex items-center h-10 bg-[#1A1C22]/95 rounded-full pl-3.5 ${contentType === 'video' ? 'pr-3.5' : 'pr-2.5'} cursor-pointer active:scale-95 transition-transform`}>
+          <div className="flex items-center h-10 bg-[#1A1C22]/95 rounded-full pl-3.5 pr-2.5 cursor-pointer active:scale-95 transition-transform">
             <Music size={16} strokeWidth={2.2} className="text-white mr-2" />
-            <span className="text-[13px] font-[800] tracking-wide text-white">{contentType === 'video' ? '添加音乐' : 'STOLEN LOVE'}</span>
-            {contentType !== 'video' && (
-              <>
-                <div className="w-px h-6 bg-white/18 mx-2.5" />
-                <X size={19} strokeWidth={2.2} className="text-white/90" />
-              </>
-            )}
+            <span className="text-[13px] font-[800] tracking-wide text-white">{contentType === 'video' ? 'Lazy' : 'STOLEN LOVE'}</span>
+            <>
+              <div className="w-px h-6 bg-white/18 mx-2.5" />
+              <X size={19} strokeWidth={2.2} className="text-white/90" />
+            </>
           </div>
 
           <button className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:scale-90 transition-transform">
@@ -2318,7 +2332,7 @@ export default function App() {
               
               {/* Real-time feedback compact card */}
               <div
-                className="relative w-full rounded-2xl border border-white/10 shadow-2xl px-4 py-2.5 flex flex-col justify-center gap-2"
+                className="relative w-[calc(100%+24px)] -ml-6 translate-x-[20px] rounded-2xl border border-white/10 shadow-2xl px-4 py-2.5 flex flex-col justify-center gap-2"
                 style={{
                   backgroundColor: 'rgba(22, 24, 35, 0.8)',
                   backdropFilter: 'blur(24px)',
@@ -2354,7 +2368,7 @@ export default function App() {
           )}
 
           {/* AI Review Button */}
-          <div className="w-[42px] shrink-0 flex justify-center pointer-events-auto">
+          <div className="w-[72px] shrink-0 flex justify-center pointer-events-auto">
             <button 
               onClick={() => {
                 if (!isReviewing) {
@@ -2363,15 +2377,36 @@ export default function App() {
               }}
               className={`flex flex-col items-center justify-center transition-transform relative ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
             >
-              <div className="flex items-center justify-center gap-1 mb-1 h-[28px] relative">
-                <div className="w-[16px] h-[16px] rounded-full bg-[#20D5EC] flex items-center justify-center shadow-[0_0_8px_rgba(32,213,236,0.8)]">
-                  <div className="w-[7px] h-[7px] rounded-full bg-[#333333]"></div>
-                </div>
-                <div className="w-[16px] h-[16px] rounded-full bg-[#FE2C55] flex items-center justify-center shadow-[0_0_8px_rgba(254,44,85,0.8)]">
-                  <div className="w-[7px] h-[7px] rounded-full bg-[#333333]"></div>
-                </div>
+              <div className="flex items-center justify-center gap-1 mb-1 h-[48px] relative">
+                {isReviewing ? (
+                  <video
+                    key={aiReviewIconPhase}
+                    src={aiReviewIconPhase === 'intro' ? aiReviewIconIntroVideo : aiReviewIconLoopVideo}
+                    autoPlay
+                    loop={aiReviewIconPhase === 'loop'}
+                    muted
+                    playsInline
+                    onEnded={() => {
+                      if (aiReviewIconPhase === 'intro') {
+                        setAiReviewIconPhase('loop');
+                      }
+                    }}
+                    className="w-[72px] h-[48px] object-cover"
+                    style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
+                  />
+                ) : (
+                  <video
+                    src={aiReviewIconLoopVideo}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-[72px] h-[48px] object-cover"
+                    style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
+                  />
+                )}
                 {/* AI Tag */}
-                <div className="absolute -top-1.5 -right-3.5 bg-gray-500/50 backdrop-blur-sm rounded-[4px] px-1 py-[2px] border border-white/10 flex items-center justify-center">
+                <div className="absolute -bottom-[4px] -right-[4px] bg-gray-500/50 backdrop-blur-sm rounded-[4px] px-1 py-[2px] border border-white/10 flex items-center justify-center">
                   <span className="text-[9px] font-bold text-white leading-none tracking-wider">AI</span>
                 </div>
               </div>
