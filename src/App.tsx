@@ -50,7 +50,6 @@ import {
   ArrowRight,
   Check,
   Edit2,
-  RefreshCw,
   AlertCircle,
   Type,
   Video,
@@ -62,6 +61,8 @@ export default function App() {
   type ReviewOutcome = 'safe' | 'risk';
   type ContentType = 'single' | 'multi' | 'video';
   type ReviewCheckKey = 'visual' | 'audio' | 'text';
+  type TimelineTrack = 'video' | 'music' | 'text' | null;
+  type TimelineSnapshot = { track: TimelineTrack; step: number };
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -91,8 +92,17 @@ export default function App() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [fixThumbnailOffsetX, setFixThumbnailOffsetX] = useState(0);
   const [editorThumbnailOffsetX, setEditorThumbnailOffsetX] = useState(0);
+  const [isEditorVideoPlaying, setIsEditorVideoPlaying] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedTimelineTrack, setSelectedTimelineTrack] = useState<TimelineTrack>(null);
+  const [videoTrackFrames, setVideoTrackFrames] = useState<string[]>([]);
+  const [videoFrameAspectRatio, setVideoFrameAspectRatio] = useState(16 / 9);
+  const [musicWavePath, setMusicWavePath] = useState('');
+  const [timelineHistory, setTimelineHistory] = useState<TimelineSnapshot[]>([]);
+  const [timelineHistoryIndex, setTimelineHistoryIndex] = useState(-1);
   const currentImageIndexRef = React.useRef(0);
+  const editorVideoRef = React.useRef<HTMLVideoElement>(null);
+  const fixVideoRef = React.useRef<HTMLVideoElement>(null);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const fixScrollContainerRef = React.useRef<HTMLDivElement>(null);
   const fixThumbnailViewportRef = React.useRef<HTMLDivElement>(null);
@@ -114,10 +124,152 @@ export default function App() {
     </svg>
   );
 
+  const SolidMusicNoteIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M16.25 3.25a1 1 0 0 0-1.25-.97l-7 2A1 1 0 0 0 7.25 5.24v8.02a3.25 3.25 0 1 0 1.5 2.74V9.14l5.5-1.57v3.69a3.25 3.25 0 1 0 1.5 2.74V4.25Z" />
+    </svg>
+  );
+
+  const ExpandCornersIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path d="M9 4H6a2 2 0 0 0-2 2v3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 4h3a2 2 0 0 1 2 2v3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 15v3a2 2 0 0 1-2 2h-3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 14.5 4.5 19.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M4.5 16.5v3h3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14.5 9.5 19.5 4.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M16.5 4.5h3v3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  const UndoCurvedIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path d="M9 7H4v5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 12l4.5-4.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 7h5.5a5.5 5.5 0 0 1 0 11H11" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  const RedoCurvedIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path d="M15 7h5v5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 12 15.5 7.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 7H9.5a5.5 5.5 0 0 0 0 11H13" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  const buildMirroredWavePath = (samples: number[]) => {
+    if (samples.length < 2) return '';
+
+    const width = 1000;
+    const height = 100;
+    const baseline = height / 2;
+    const maxAmplitude = (height * 0.6) / 2; // waveform takes ~60% of track height
+    const step = width / (samples.length - 1);
+
+    let path = `M 0 ${baseline}`;
+    for (let i = 0; i < samples.length; i += 1) {
+      const x = i * step;
+      const yTop = baseline - samples[i] * maxAmplitude;
+      path += ` L ${x.toFixed(2)} ${yTop.toFixed(2)}`;
+    }
+
+    for (let i = samples.length - 1; i >= 0; i -= 1) {
+      const x = i * step;
+      const yBottom = baseline + samples[i] * maxAmplitude;
+      path += ` L ${x.toFixed(2)} ${yBottom.toFixed(2)}`;
+    }
+
+    path += ' Z';
+    return path;
+  };
+
   const renderReviewIcon = (key: ReviewCheckKey, size = 20, strokeWidth = 1.8) => {
     if (key === 'visual') return <Eye size={size} strokeWidth={strokeWidth} className="text-white" />;
     if (key === 'audio') return <Volume2 size={size} strokeWidth={strokeWidth} className="text-white" />;
     return <FileText size={size} strokeWidth={strokeWidth} className="text-white" />;
+  };
+
+  const handleVideoVolumeReady = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    e.currentTarget.volume = 0.2;
+  };
+
+  const toggleEditorVideoPlayback = () => {
+    const video = editorVideoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      void video.play();
+      setIsEditorVideoPlaying(true);
+    } else {
+      video.pause();
+      setIsEditorVideoPlaying(false);
+    }
+  };
+
+  const toggleFixVideoPlayback = () => {
+    const video = fixVideoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      void video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const applyTimelineSnapshot = (snapshot: TimelineSnapshot) => {
+    setSelectedTimelineTrack(snapshot.track);
+    setFixStep(snapshot.step);
+  };
+
+  const pushTimelineSnapshot = (snapshot: TimelineSnapshot) => {
+    setTimelineHistory(prev => {
+      const base = prev.slice(0, timelineHistoryIndex + 1);
+      const last = base[base.length - 1];
+      if (last && last.track === snapshot.track && last.step === snapshot.step) {
+        return prev;
+      }
+      const next = [...base, snapshot];
+      setTimelineHistoryIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const commitTimelineEdit = (track: TimelineTrack, step: number) => {
+    const snapshot = { track, step };
+    applyTimelineSnapshot(snapshot);
+    pushTimelineSnapshot(snapshot);
+  };
+
+  const handleUndoTimeline = () => {
+    if (timelineHistoryIndex <= 0) return;
+    const nextIndex = timelineHistoryIndex - 1;
+    const snapshot = timelineHistory[nextIndex];
+    if (!snapshot) return;
+    setTimelineHistoryIndex(nextIndex);
+    applyTimelineSnapshot(snapshot);
+  };
+
+  const handleRedoTimeline = () => {
+    if (timelineHistoryIndex >= timelineHistory.length - 1) return;
+    const nextIndex = timelineHistoryIndex + 1;
+    const snapshot = timelineHistory[nextIndex];
+    if (!snapshot) return;
+    setTimelineHistoryIndex(nextIndex);
+    applyTimelineSnapshot(snapshot);
+  };
+
+  const handleOneClickFix = () => {
+    if (fixStep === 1) {
+      const nextTrack: TimelineTrack = contentType === 'video' ? 'music' : selectedTimelineTrack;
+      commitTimelineEdit(nextTrack, 2);
+      return;
+    }
+    setIsAllFixed(true);
   };
 
   const getReviewItemProgress = (index: number) => {
@@ -180,17 +332,32 @@ export default function App() {
   const activeSingleImage = selectedOutcome ? mediaLibrary[selectedOutcome].single : defaultMultiImages[0];
   const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
   const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+  const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
+  const videoFramesToRender = videoTrackFrames.length > 0
+    ? videoTrackFrames
+    : Array.from({ length: 12 }, () => activeSingleImage);
 
   useEffect(() => {
     currentImageIndexRef.current = currentImageIndex;
   }, [currentImageIndex]);
+
+  useEffect(() => {
+    if (contentType !== 'video' || currentView !== 'fix') return;
+    const initial: TimelineSnapshot = { track: selectedTimelineTrack, step: fixStep };
+    setTimelineHistory([initial]);
+    setTimelineHistoryIndex(0);
+  }, [contentType, currentView]);
 
   const selectScenario = (nextType: ContentType, nextOutcome: ReviewOutcome) => {
     setContentType(nextType);
     setSelectedOutcome(nextOutcome);
     setReviewResult(null);
     setCurrentImageIndex(0);
+    setIsEditorVideoPlaying(true);
     setIsPlaying(false);
+    setSelectedTimelineTrack(null);
+    setTimelineHistory([]);
+    setTimelineHistoryIndex(-1);
   };
 
   const tools = [
@@ -353,6 +520,185 @@ export default function App() {
       window.removeEventListener('resize', updateEditorThumbnailOffset);
     };
   }, [contentType, currentView, currentImageIndex, multiImages.length]);
+
+  useEffect(() => {
+    if (contentType !== 'video' || currentView !== 'fix') return;
+
+    let isCancelled = false;
+
+    const sampleVideoFrames = async () => {
+      const sampler = document.createElement('video');
+      sampler.src = activeVideo;
+      sampler.preload = 'auto';
+      sampler.muted = true;
+      sampler.playsInline = true;
+
+      const waitForEvent = (eventName: 'loadedmetadata' | 'seeked' | 'error') =>
+        new Promise<void>((resolve, reject) => {
+          const onResolve = () => {
+            cleanup();
+            resolve();
+          };
+          const onReject = () => {
+            cleanup();
+            reject(new Error(`video ${eventName} failed`));
+          };
+          const cleanup = () => {
+            sampler.removeEventListener(eventName, onResolve);
+            sampler.removeEventListener('error', onReject);
+          };
+
+          sampler.addEventListener(eventName, onResolve, { once: true });
+          sampler.addEventListener('error', onReject, { once: true });
+        });
+
+      try {
+        await waitForEvent('loadedmetadata');
+
+        const ratio = sampler.videoHeight > 0 ? sampler.videoWidth / sampler.videoHeight : 16 / 9;
+        const duration = Number.isFinite(sampler.duration) && sampler.duration > 0 ? sampler.duration : 3;
+        const interval = 0.5;
+
+        const canvas = document.createElement('canvas');
+        const canvasHeight = 112;
+        const canvasWidth = Math.max(1, Math.round(canvasHeight * ratio));
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const timestamps: number[] = [];
+        for (let t = 0; t < duration; t += interval) {
+          timestamps.push(t);
+        }
+        if (timestamps.length === 0) {
+          timestamps.push(0);
+        }
+
+        const frames: string[] = [];
+        for (const time of timestamps) {
+          sampler.currentTime = Math.min(time, Math.max(duration - 0.05, 0));
+          await waitForEvent('seeked');
+          ctx.drawImage(sampler, 0, 0, canvasWidth, canvasHeight);
+          frames.push(canvas.toDataURL('image/jpeg', 0.82));
+        }
+
+        // Ensure enough frame tiles to tightly cover the visual track area.
+        const minFrameCount = 12;
+        const tiledFrames: string[] = [];
+        while (tiledFrames.length < minFrameCount) {
+          tiledFrames.push(frames[tiledFrames.length % frames.length]);
+        }
+
+        if (!isCancelled) {
+          setVideoFrameAspectRatio(ratio);
+          setVideoTrackFrames(tiledFrames);
+        }
+      } catch {
+        if (!isCancelled) {
+          const fallbackFrames = Array.from({ length: 12 }, () => activeSingleImage);
+          setVideoFrameAspectRatio(16 / 9);
+          setVideoTrackFrames(fallbackFrames);
+        }
+      }
+    };
+
+    void sampleVideoFrames();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [contentType, currentView, activeVideo, activeSingleImage]);
+
+  useEffect(() => {
+    if (contentType !== 'video' || currentView !== 'fix') return;
+
+    let isCancelled = false;
+
+    const smoothSeries = (input: number[], radius: number) => {
+      return input.map((_, index) => {
+        let sum = 0;
+        let count = 0;
+        for (let i = Math.max(0, index - radius); i <= Math.min(input.length - 1, index + radius); i += 1) {
+          sum += input[i];
+          count += 1;
+        }
+        return count > 0 ? sum / count : 0;
+      });
+    };
+
+    const buildWaveFromAudio = async () => {
+      try {
+        const response = await fetch(activeVideo);
+        const audioData = await response.arrayBuffer();
+        const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextCtor) throw new Error('AudioContext unavailable');
+        const audioContext = new AudioContextCtor();
+        const decoded = await audioContext.decodeAudioData(audioData.slice(0));
+
+        const channels = decoded.numberOfChannels;
+        const sampleCount = decoded.length;
+        const mixed = new Float32Array(sampleCount);
+
+        for (let ch = 0; ch < channels; ch += 1) {
+          const data = decoded.getChannelData(ch);
+          for (let i = 0; i < sampleCount; i += 1) {
+            mixed[i] += data[i] / channels;
+          }
+        }
+
+        const bucketCount = 240;
+        const bucketSize = Math.max(1, Math.floor(sampleCount / bucketCount));
+        const envelope: number[] = [];
+
+        for (let bucket = 0; bucket < bucketCount; bucket += 1) {
+          const start = bucket * bucketSize;
+          const end = Math.min(sampleCount, start + bucketSize);
+          if (end <= start) {
+            envelope.push(0);
+            continue;
+          }
+
+          let sumSquares = 0;
+          for (let i = start; i < end; i += 1) {
+            const value = mixed[i];
+            sumSquares += value * value;
+          }
+
+          const rms = Math.sqrt(sumSquares / (end - start));
+          envelope.push(rms);
+        }
+
+        const peak = Math.max(...envelope, 0.0001);
+        const normalized = envelope.map((value) => Math.pow(Math.min(1, value / peak), 0.75));
+        const smoothed = smoothSeries(normalized, 2).map((value) => Math.max(0.06, Math.min(1, value)));
+        const path = buildMirroredWavePath(smoothed);
+
+        await audioContext.close();
+
+        if (!isCancelled) {
+          setMusicWavePath(path);
+        }
+      } catch {
+        // fallback: still use smooth mirrored waveform if decode fails
+        const fallback = Array.from({ length: 240 }, (_, i) => {
+          const t = i / 239;
+          const curve = 0.35 + 0.3 * Math.sin(t * Math.PI * 3.2) + 0.15 * Math.sin(t * Math.PI * 11.5);
+          return Math.max(0.08, Math.min(0.9, curve));
+        });
+        const path = buildMirroredWavePath(smoothSeries(fallback, 3));
+        if (!isCancelled) {
+          setMusicWavePath(path);
+        }
+      }
+    };
+
+    void buildWaveFromAudio();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [contentType, currentView, activeVideo]);
 
   const startReview = () => {
     if (enabledReviewItems.length === 0) {
@@ -877,70 +1223,81 @@ export default function App() {
           {/* Content based on contentType */}
           {contentType === 'video' ? (
             // Video Layout
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col items-center pt-2 px-4 pb-8 min-h-0">
               {/* Video Preview Container */}
-              <div className="flex-1 w-full flex items-center justify-center min-h-0 relative py-2">
-                <div className="h-full aspect-[9/16] rounded-[20px] border-[1.5px] border-white/25 bg-black overflow-hidden relative mx-auto">
+              <div className="w-[60%] h-[48%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative">
+                <div className="w-full h-full overflow-hidden relative bg-black flex items-center justify-center">
                   <video 
+                    ref={fixVideoRef}
                     src={activeVideo} 
                     autoPlay={isPlaying} 
                     loop 
-                    muted 
                     playsInline
-                    className="w-full h-full object-cover"
+                    onLoadedMetadata={handleVideoVolumeReady}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    className="w-full max-h-full h-auto object-contain object-center"
                   />
-                  
-                  {/* Play/Pause Overlay */}
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
-                    onClick={() => setIsPlaying(!isPlaying)}
-                  >
-                    {!isPlaying ? (
-                      <div className="w-14 h-14 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm">
-                        <Play size={28} className="text-white ml-1" fill="currentColor" />
-                      </div>
-                    ) : (
-                      <div className="w-14 h-14 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm opacity-0 hover:opacity-100 transition-opacity">
-                        <Pause size={28} className="text-white" fill="currentColor" />
-                      </div>
-                    )}
-                  </div>
 
                   {/* Warning Overlays */}
-                  {!isAllFixed && fixStep === 1 && (
-                    <>
-                      <div className="absolute top-[12%] left-1/2 -translate-x-1/2 text-white text-[17px] font-medium whitespace-nowrap drop-shadow-md z-20 pointer-events-none">
-                        文案含敏感词
-                      </div>
-                      <div className="absolute inset-0 bg-amber-500/20 mix-blend-overlay pointer-events-none z-10" />
-                    </>
-                  )}
                   {!isAllFixed && fixStep === 2 && (
                     <>
                       <div className="absolute top-[12%] left-1/2 -translate-x-1/2 text-white text-[17px] font-medium whitespace-nowrap drop-shadow-md z-20 pointer-events-none">
                         音乐版权受限
                       </div>
-                      <div className="absolute inset-0 bg-amber-500/20 mix-blend-overlay pointer-events-none z-10" />
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Playback Control Bar */}
-              <div className="h-[40px] flex items-center px-4 justify-between shrink-0 relative">
-                <span className="text-[14px] font-medium text-white/90">00:00/00:03</span>
-                <div className="flex items-center gap-4">
-                  <button className="active:scale-90 transition-transform">
-                    <RefreshCw size={20} className="text-white" />
-                  </button>
-                  <button className="active:scale-90 transition-transform">
-                    <Maximize2 size={20} className="text-white" />
-                  </button>
-                </div>
-              </div>
+              <div className="w-full mt-4 flex flex-col flex-1 min-h-0">
+                <div className="mt-auto -translate-y-[16px]">
+                  {/* Playback Control Bar */}
+                  <div className="h-[40px] flex items-center px-0 justify-between shrink-0 relative">
+                    <span className="text-[14px] font-medium text-white/90">00:00/00:03</span>
+                    <button
+                      onClick={toggleFixVideoPlayback}
+                      className="absolute left-1/2 -translate-x-1/2 w-[18px] h-[18px] flex items-center justify-center active:scale-95 transition-transform"
+                      aria-label={isPlaying ? '暂停' : '播放'}
+                    >
+                      {isPlaying ? (
+                        <span className="flex items-center gap-[3px]">
+                          <span className="block w-[4px] h-[18px] rounded-[2px] bg-white" />
+                          <span className="block w-[4px] h-[18px] rounded-[2px] bg-white" />
+                        </span>
+                      ) : (
+                        <svg viewBox="0 0 20 20" className="w-[20px] h-[20px] text-white" fill="currentColor" aria-hidden="true">
+                          <path d="M3.2 3.6c0-1 1.1-1.6 2-1.1l12 7.1c0.9 0.5 0.9 1.8 0 2.4l-12 7.1c-0.9 0.5-2-0.1-2-1.1V3.6z" />
+                        </svg>
+                      )}
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={handleUndoTimeline}
+                        disabled={timelineHistoryIndex <= 0}
+                        className={`active:scale-90 transition-transform ${timelineHistoryIndex <= 0 ? 'opacity-40 cursor-not-allowed active:scale-100' : ''}`}
+                        aria-label="撤回"
+                      >
+                        <UndoCurvedIcon className={`w-[20px] h-[20px] ${timelineHistoryIndex <= 0 ? 'text-white/40' : 'text-white'}`} />
+                      </button>
 
-              {/* 3-Track Timeline Area */}
-              <div className="h-[130px] flex flex-col shrink-0 relative overflow-hidden bg-black">
+                      <button
+                        onClick={handleRedoTimeline}
+                        disabled={timelineHistoryIndex >= timelineHistory.length - 1}
+                        className={`active:scale-90 transition-transform ${timelineHistoryIndex >= timelineHistory.length - 1 ? 'opacity-40 cursor-not-allowed active:scale-100' : ''}`}
+                        aria-label="取消撤回"
+                      >
+                        <RedoCurvedIcon className={`w-[20px] h-[20px] ${timelineHistoryIndex >= timelineHistory.length - 1 ? 'text-white/40' : 'text-white'}`} />
+                      </button>
+
+                      <button className="active:scale-90 transition-transform" aria-label="放大">
+                        <ExpandCornersIcon className="w-[20px] h-[20px] text-white" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3-Track Timeline Area */}
+                  <div className="h-[154px] flex flex-col shrink-0 relative overflow-visible bg-black">
                 <style>{`
                   @keyframes moveTracks {
                     from { transform: translateX(0); }
@@ -949,30 +1306,52 @@ export default function App() {
                 `}</style>
                 
                 {/* Time markers */}
-                <div className="h-6 flex items-center relative w-full text-white/50 text-[12px] font-medium">
+                <div className="h-6 pt-1 flex items-center relative w-full text-white/50 text-[12px] font-medium z-40">
                   <div className="absolute left-1/2 -translate-x-1/2">00:00</div>
                   <div className="absolute left-[75%] -translate-x-1/2">00:02</div>
-                  <div className="absolute left-[100%] -translate-x-1/2">00:04</div>
+                  <div className="absolute right-0">00:04</div>
                 </div>
 
                 {/* Time pointer (Fixed in center) */}
-                <div className="absolute left-1/2 top-6 bottom-2 w-[2px] bg-white rounded-full z-20 shadow-[0_0_4px_rgba(0,0,0,0.5)] -translate-x-1/2 cursor-ew-resize" />
+                <div className="absolute left-1/2 top-[32px] h-[140px] w-[2px] bg-white rounded-full z-20 shadow-[0_0_4px_rgba(0,0,0,0.5)] -translate-x-1/2 cursor-ew-resize" />
 
                 {/* Tracks Container (Moves) */}
                 <div 
-                  className="flex flex-col gap-2 relative h-full w-[200%]"
+                  className="flex flex-col gap-[6px] relative z-10 h-[calc(100%-6px)] translate-y-[16px] w-[200%]"
                   style={{ 
                     animation: 'moveTracks 10s linear infinite',
                     animationPlayState: isPlaying ? 'running' : 'paused'
                   }}
                 >
                   {/* Video Track */}
-                  <div className="h-[56px] flex overflow-hidden relative ml-[25%] w-[50%]">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="flex-1 h-full border-r border-black/20 shrink-0 bg-gray-700 rounded-md overflow-hidden mx-[1px]">
-                        <img src={activeSingleImage} className="w-full h-full object-cover opacity-80" />
-                      </div>
-                    ))}
+                  <div
+                    className="h-[52px] flex overflow-hidden relative ml-[25%] w-[50%] rounded-[6px] cursor-pointer bg-[#111317]"
+                    onClick={() => {
+                      commitTimelineEdit('video', 1);
+                    }}
+                    style={{ boxShadow: selectedTimelineTrack === 'video' ? 'inset 0 0 0 1.5px rgba(255,255,255,0.95)' : 'none' }}
+                  >
+                    <div className="flex h-full w-max min-w-full">
+                      {videoFramesToRender.map((frame, i) => {
+                        const isFirst = i === 0;
+                        const isLast = i === videoFramesToRender.length - 1;
+                        return (
+                          <div
+                            key={`${frame}-${i}`}
+                            className={`h-[52px] shrink-0 overflow-hidden ${isFirst ? 'rounded-l-[4px]' : ''} ${isLast ? 'rounded-r-[4px]' : ''}`}
+                            style={{ width: `${videoFrameWidth}px` }}
+                          >
+                            <img src={frame} className="w-full h-full object-cover" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {selectedTimelineTrack === 'video' && (
+                      <>
+                        <div className="absolute left-1 top-0 bottom-0 w-1 bg-white rounded-[2px] z-20" />
+                        <div className="absolute right-1 top-0 bottom-0 w-1 bg-white rounded-[2px] z-20" />
+                      </>
+                    )}
                     {/* Problematic segment */}
                     {!isAllFixed && fixStep === 1 && (
                       <div 
@@ -984,16 +1363,21 @@ export default function App() {
 
                   {/* Music Track */}
                   <div 
-                    className={`h-[44px] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%] cursor-pointer transition-colors ${!isAllFixed && fixStep === 2 ? 'bg-amber-500' : 'bg-[#8B93FF]'}`}
-                    onClick={() => setFixStep(2)}
+                    className={`h-[32px] rounded-lg relative overflow-hidden ml-[25%] w-[50%] cursor-pointer transition-colors ${!isAllFixed && fixStep === 2 ? 'bg-amber-500' : 'bg-[#8B93FF]'}`}
+                    onClick={() => {
+                      commitTimelineEdit('music', 2);
+                    }}
                   >
-                    <Music size={16} className="mr-2 shrink-0 text-black/60" />
-                    <span className="text-[14px] font-medium text-black/70 truncate z-10">Lazy</span>
-                    {/* Waveform */}
-                    <div className="absolute inset-0 flex items-center gap-[3px] opacity-20 px-16 overflow-hidden pointer-events-none">
-                      {[...Array(40)].map((_, i) => (
-                        <div key={i} className="w-1.5 bg-black rounded-full" style={{ height: `${20 + Math.sin(i * 0.5) * 50 + Math.random() * 30}%` }} />
-                      ))}
+                    {/* Mirrored audio waveform from sampled audio data */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="w-full h-full">
+                        <path d={musicWavePath} fill="rgba(56, 93, 223, 0.55)" />
+                      </svg>
+                    </div>
+
+                    <div className="relative z-10 h-full flex items-center px-3 gap-2.5">
+                      <SolidMusicNoteIcon className="w-5 h-5 text-black/65 shrink-0" />
+                      <span className="text-[14px] font-medium text-black/70 truncate">Lazy</span>
                     </div>
                     {!isAllFixed && fixStep === 2 && (
                       <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/40 text-[10px] px-2 py-0.5 rounded-b-md text-white">
@@ -1003,7 +1387,12 @@ export default function App() {
                   </div>
 
                   {/* Text Track */}
-                  <div className="h-[44px] bg-[#F4A8E6] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%]">
+                  <div
+                    className="h-[32px] bg-[#F4A8E6] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%] cursor-pointer"
+                    onClick={() => {
+                      commitTimelineEdit('text', 1);
+                    }}
+                  >
                     <span className="text-[14px] font-medium text-black/70 truncate">新年快乐</span>
                     {!isAllFixed && fixStep === 1 && (
                       <div 
@@ -1015,16 +1404,16 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              </div>
+                  </div>
+                </div>
 
-              {/* Hint Box (Video) */}
-              <div className="px-4 py-2 shrink-0">
+                {/* Hint Box (Video) */}
                 {!isAllFixed && (
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
+                  <div className="mt-4 -mx-1 bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
                     <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-[12px] text-white/90">
-                        {fixStep === 1 ? '文案含敏感词：「减肥」类话题限制分发' : '音乐在部分地区版权受限'}
+                        {fixStep === 1 ? '视频中文字含敏感词：「精神健康」类话题限制分发' : '音乐在部分地区版权受限'}
                       </p>
                     </div>
                     <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
@@ -1032,57 +1421,53 @@ export default function App() {
                     </button>
                   </div>
                 )}
-              </div>
 
-              {/* Bottom Toolbar */}
-              {!isAllFixed && (
-                <div className="w-[calc(100%+16px)] -mx-2 overflow-x-auto scrollbar-hide pb-1 shrink-0 border-t border-white/10 pt-3">
-                  <div className="min-w-max flex gap-1">
-                    <button
-                      onClick={() => {
-                        if (fixStep === 1) setFixStep(2);
-                        else if (fixStep === 2) setShowMusicSelector(true);
-                        else setIsAllFixed(true);
-                      }}
-                      className="w-[74px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform"
-                    >
-                      <Wand2 size={24} className="text-[#00f2fe]" />
-                      <span className="text-[11px] text-[#00f2fe] font-medium">一键修复</span>
-                    </button>
+                {/* Bottom Toolbar */}
+                {!isAllFixed && (
+                  <div className="w-[calc(100%+16px)] -mx-2 mt-4 overflow-x-auto scrollbar-hide pb-1">
+                    <div className="min-w-max flex gap-1">
+                      <button
+                        onClick={handleOneClickFix}
+                        className="w-[74px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+                      >
+                        <Wand2 size={24} className="text-[#00f2fe]" />
+                        <span className="text-[11px] text-[#00f2fe] font-medium">一键修复</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <img src="/assets/icons/tools/edit.png" alt="编辑" className="w-6 h-6" />
-                      <span className="text-[11px] text-white/85 font-medium">编辑</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/edit.png" alt="编辑" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">编辑</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <img src="/assets/icons/tools/voice.png" alt="音乐" className="w-6 h-6" />
-                      <span className="text-[11px] text-white/85 font-medium">音乐</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/voice.png" alt="音乐" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">音乐</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <img src="/assets/icons/tools/text.png" alt="文本" className="w-6 h-6" />
-                      <span className="text-[11px] text-white/85 font-medium">文本</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/text.png" alt="文本" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">文本</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <img src="/assets/icons/tools/effects.png" alt="特效" className="w-6 h-6" />
-                      <span className="text-[11px] text-white/85 font-medium">特效</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/effects.png" alt="特效" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">特效</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <img src="/assets/icons/tools/filters.png" alt="滤镜" className="w-6 h-6" />
-                      <span className="text-[11px] text-white/85 font-medium">滤镜</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <img src="/assets/icons/tools/filters.png" alt="滤镜" className="w-6 h-6" />
+                        <span className="text-[11px] text-white/85 font-medium">滤镜</span>
+                      </button>
 
-                    <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
-                      <Subtitles size={24} className="text-white/85" />
-                      <span className="text-[11px] text-white/85 font-medium">字幕</span>
-                    </button>
+                      <button className="w-[68px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform">
+                        <Subtitles size={24} className="text-white/85" />
+                        <span className="text-[11px] text-white/85 font-medium">字幕</span>
+                      </button>
+                    </div>
                   </div>
+                )}
                 </div>
-              )}
-            </div>
+              </div>
           ) : (
             // Image Layout (Single/Multi)
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
@@ -1174,7 +1559,7 @@ export default function App() {
                     <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-[12px] text-white/90">
-                        {fixStep === 1 ? '画面内容检测到可能违反「安全与礼貌」准则' : '文案含敏感词：「减肥」类话题限制分发'}
+                        {fixStep === 1 ? '画面内容检测到可能违反「安全与礼貌」准则' : '视频中文字含敏感词：「精神健康」类话题限制分发'}
                       </p>
                     </div>
                     <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
@@ -1188,10 +1573,7 @@ export default function App() {
                   <div className="w-[calc(100%+16px)] -mx-2 mt-4 overflow-x-auto scrollbar-hide pb-1">
                     <div className="min-w-max flex gap-1">
                       <button
-                        onClick={() => {
-                          if (fixStep === 1) setFixStep(2);
-                          else setIsAllFixed(true);
-                        }}
+                        onClick={handleOneClickFix}
                         className="w-[74px] h-[74px] rounded-xl bg-[#17181D] flex flex-col items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-transform"
                       >
                         <Wand2 size={24} className="text-[#00f2fe]" />
@@ -1332,7 +1714,7 @@ export default function App() {
                   {fixStep === 1 && (
                     <div className="flex items-center gap-2 text-[14px] text-white/90">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
-                      文案含敏感词：「减肥」类话题限制分发
+                      视频中文字含敏感词：「精神健康」类话题限制分发
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-[14px] text-white/90">
@@ -1420,14 +1802,19 @@ export default function App() {
         >
           <div className="w-full h-[105.85%] flex items-center justify-center">
             {contentType === 'video' ? (
-              <video 
-                src={activeVideo} 
-                autoPlay 
-                loop 
-                muted 
-                playsInline
-                className="w-full h-full object-contain"
-              />
+              <div className="relative w-full h-full cursor-pointer" onClick={toggleEditorVideoPlayback}>
+                <video 
+                  ref={editorVideoRef}
+                  src={activeVideo} 
+                  autoPlay={isEditorVideoPlaying}
+                  loop 
+                  playsInline
+                  onPlay={() => setIsEditorVideoPlaying(true)}
+                  onPause={() => setIsEditorVideoPlaying(false)}
+                  onLoadedMetadata={handleVideoVolumeReady}
+                  className="w-full h-full object-contain"
+                />
+              </div>
             ) : contentType === 'multi' ? (
               <div 
                 ref={scrollContainerRef}
@@ -1645,11 +2032,15 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex items-center h-10 bg-[#1A1C22]/95 rounded-full pl-3.5 pr-2.5 cursor-pointer active:scale-95 transition-transform">
+          <div className={`flex items-center h-10 bg-[#1A1C22]/95 rounded-full pl-3.5 ${contentType === 'video' ? 'pr-3.5' : 'pr-2.5'} cursor-pointer active:scale-95 transition-transform`}>
             <Music size={16} strokeWidth={2.2} className="text-white mr-2" />
-            <span className="text-[13px] font-[800] tracking-wide text-white">STOLEN LOVE</span>
-            <div className="w-px h-6 bg-white/18 mx-2.5" />
-            <X size={19} strokeWidth={2.2} className="text-white/90" />
+            <span className="text-[13px] font-[800] tracking-wide text-white">{contentType === 'video' ? '添加音乐' : 'STOLEN LOVE'}</span>
+            {contentType !== 'video' && (
+              <>
+                <div className="w-px h-6 bg-white/18 mx-2.5" />
+                <X size={19} strokeWidth={2.2} className="text-white/90" />
+              </>
+            )}
           </div>
 
           <button className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] active:scale-90 transition-transform">
@@ -1730,8 +2121,15 @@ export default function App() {
               `}</style>
               
               {/* Real-time feedback compact card */}
-              <div className="w-full bg-black/60 backdrop-blur-xl rounded-2xl px-4 py-2.5 border border-white/10 shadow-2xl flex flex-col justify-center gap-2">
-                <div className="flex items-center justify-between gap-3">
+              <div
+                className="relative w-full rounded-2xl border border-white/10 shadow-2xl px-4 py-2.5 flex flex-col justify-center gap-2"
+                style={{
+                  backgroundColor: 'rgba(22, 24, 35, 0.8)',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)'
+                }}
+              >
+                  <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-white">
                     <div className={`${reviewProgress < 100 ? 'animate-pulse text-[#00f2fe]' : 'text-[#00D27A]'} scale-90 origin-left`}>
                       {currentStepIcon}
@@ -1837,8 +2235,10 @@ export default function App() {
         {/* Bottom Bar */}
         <div className="absolute bottom-8 inset-x-4 flex space-x-3 z-10 h-[48px]">
           <button className="flex-1 flex items-center justify-center h-full bg-white text-black rounded-full px-1 font-semibold text-[14px] shadow-lg active:scale-95 transition-transform">
-            <div className="w-[29px] h-[29px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#00f2fe] to-[#4facfe] mr-1.5 shrink-0">
-              <div className="w-full h-full rounded-full border-2 border-white overflow-hidden">
+            <div className="relative w-[30px] h-[30px] mr-1.5 shrink-0">
+              <div className="absolute left-1/2 top-1/2 w-[30px] h-[30px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-[#00f2fe] to-[#4facfe]" />
+              <div className="absolute left-1/2 top-1/2 w-[24px] h-[24px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2px] border-white" />
+              <div className="absolute left-1/2 top-1/2 w-[20px] h-[20px] -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden">
                 <img src="https://i.pravatar.cc/150?img=47" alt="avatar" className="w-full h-full object-cover object-center block" />
               </div>
             </div>
@@ -1958,7 +2358,7 @@ export default function App() {
               className="relative bg-[#161823]/80 backdrop-blur-[20px] rounded-t-2xl px-5 pt-4 pb-7 text-white shadow-2xl"
             >
               <div className="relative flex items-center justify-center mb-3">
-                <h2 className="text-[18px] font-[700] tracking-tight">发现注意项</h2>
+                <h2 className="text-[18px] font-[700] tracking-tight">发现风险项</h2>
                 <button 
                   onClick={() => setShowRiskPopup(false)}
                   className="absolute right-0 p-1.5 active:opacity-70 transition-opacity"
@@ -1989,8 +2389,8 @@ export default function App() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">文案含敏感词</h3>
-                    <p className="text-[13px] text-white/60 leading-relaxed">「减肥」类话题限制分发</p>
+                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">视频中文字含敏感词</h3>
+                    <p className="text-[13px] text-white/60 leading-relaxed">「精神健康」类话题限制分发</p>
                   </div>
                 </div>
               </div>
