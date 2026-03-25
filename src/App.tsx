@@ -56,13 +56,13 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-
 export default function App() {
   type ReviewOutcome = 'safe' | 'risk';
   type ContentType = 'single' | 'multi' | 'video';
   type ReviewCheckKey = 'visual' | 'audio' | 'text';
   type TimelineTrack = 'video' | 'music' | 'text' | null;
   type TimelineSnapshot = { track: TimelineTrack; step: number };
+  type ActiveRiskHint = 'text' | 'music' | null;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -78,7 +78,7 @@ export default function App() {
   const [showAIPopup, setShowAIPopup] = useState(false);
   const [reviewResult, setReviewResult] = useState<ReviewOutcome | null>(null);
   const [showRiskPopup, setShowRiskPopup] = useState(false);
-  const [fixStep, setFixStep] = useState(1);
+  const [fixStep, setFixStep] = useState(0);
   const [isAllFixed, setIsAllFixed] = useState(false);
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [showMusicSelector, setShowMusicSelector] = useState(false);
@@ -94,12 +94,23 @@ export default function App() {
   const [editorThumbnailOffsetX, setEditorThumbnailOffsetX] = useState(0);
   const [isEditorVideoPlaying, setIsEditorVideoPlaying] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [fixTimelineDuration, setFixTimelineDuration] = useState(3);
   const [selectedTimelineTrack, setSelectedTimelineTrack] = useState<TimelineTrack>(null);
   const [videoTrackFrames, setVideoTrackFrames] = useState<string[]>([]);
   const [videoFrameAspectRatio, setVideoFrameAspectRatio] = useState(16 / 9);
   const [musicWavePath, setMusicWavePath] = useState('');
   const [timelineHistory, setTimelineHistory] = useState<TimelineSnapshot[]>([]);
   const [timelineHistoryIndex, setTimelineHistoryIndex] = useState(-1);
+  const [activeRiskHint, setActiveRiskHint] = useState<ActiveRiskHint>(null);
+  const [hasTextRisk, setHasTextRisk] = useState(true);
+  const [hasMusicRisk, setHasMusicRisk] = useState(true);
+  const [isReplacingVideo, setIsReplacingVideo] = useState(false);
+  const [fixedRiskVideo, setFixedRiskVideo] = useState<string | null>(null);
+  const [manualTimelineShiftPx, setManualTimelineShiftPx] = useState(0);
+  const [pendingFixSeekTime, setPendingFixSeekTime] = useState<number | null>(null);
+  const [focusedTextSwitchTime, setFocusedTextSwitchTime] = useState(0);
+  const [timelineAnimationCycle, setTimelineAnimationCycle] = useState(0);
+  const [shouldStartFromSwitchPoint, setShouldStartFromSwitchPoint] = useState(false);
   const currentImageIndexRef = React.useRef(0);
   const editorVideoRef = React.useRef<HTMLVideoElement>(null);
   const fixVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -109,6 +120,7 @@ export default function App() {
   const fixThumbnailTrackRef = React.useRef<HTMLDivElement>(null);
   const editorThumbnailViewportRef = React.useRef<HTMLDivElement>(null);
   const editorThumbnailTrackRef = React.useRef<HTMLDivElement>(null);
+  const timelineViewportRef = React.useRef<HTMLDivElement>(null);
 
   const reviewItems: Array<{ key: ReviewCheckKey; label: string; desc: string; statusText: string }> = [
     { key: 'visual', label: '视觉内容', desc: '检测画面中的违规元素', statusText: '视觉画面分析中...' },
@@ -127,6 +139,12 @@ export default function App() {
   const SolidMusicNoteIcon = ({ className = '' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
       <path d="M16.25 3.25a1 1 0 0 0-1.25-.97l-7 2A1 1 0 0 0 7.25 5.24v8.02a3.25 3.25 0 1 0 1.5 2.74V9.14l5.5-1.57v3.69a3.25 3.25 0 1 0 1.5 2.74V4.25Z" />
+    </svg>
+  );
+
+  const SolidTextIcon = ({ className = '' }: { className?: string }) => (
+    <svg viewBox="0 0 92 92" className={className} fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M85.375 2C87.9297 2 90 4.07088 90 6.625V21C90 24.3137 87.3135 27 84 27H81.5C78.1865 27 75.5 24.3137 75.5 21V18.5C75.5 17.3955 74.6045 16.5 73.5 16.5H55.25C54.1455 16.5 53.25 17.3955 53.25 18.5V73.5C53.25 74.6045 54.1455 75.5 55.25 75.5H63C66.3136 75.5 69 78.1864 69 81.5V84C69 87.3136 66.3136 90 63 90H29C25.6863 90 23 87.3135 23 84V81.5C23 78.1865 25.6863 75.5 29 75.5H36.75C37.8545 75.5 38.75 74.6045 38.75 73.5V18.5C38.75 17.3955 37.8545 16.5 36.75 16.5H18.5C17.3955 16.5 16.5 17.3955 16.5 18.5V21C16.5 24.3137 13.8137 27 10.5 27H8C4.68633 27 2 24.3137 2 21V8C2 4.68633 4.68633 2 8 2H85.375Z" fill="currentColor" stroke="currentColor" strokeWidth="4" />
     </svg>
   );
 
@@ -193,6 +211,32 @@ export default function App() {
 
   const handleVideoVolumeReady = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     e.currentTarget.volume = 0.2;
+    const duration = Number.isFinite(e.currentTarget.duration) && e.currentTarget.duration > 0
+      ? e.currentTarget.duration
+      : 3;
+    setFixTimelineDuration(duration);
+
+    if (pendingFixSeekTime !== null) {
+      e.currentTarget.currentTime = Math.min(Math.max(pendingFixSeekTime, 0), duration);
+      e.currentTarget.pause();
+      setIsPlaying(false);
+      setPendingFixSeekTime(null);
+    }
+  };
+
+  const seekAndPauseFixVideo = (targetTime: number) => {
+    const video = fixVideoRef.current;
+    if (!video) return;
+
+    video.pause();
+    setIsPlaying(false);
+
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      video.currentTime = Math.min(Math.max(targetTime, 0), video.duration);
+      return;
+    }
+
+    setPendingFixSeekTime(targetTime);
   };
 
   const toggleEditorVideoPlayback = () => {
@@ -213,6 +257,20 @@ export default function App() {
     if (!video) return;
 
     if (video.paused) {
+      if (shouldStartFromSwitchPoint) {
+        const safeDuration = Number.isFinite(video.duration) && video.duration > 0
+          ? video.duration
+          : fixTimelineDuration;
+        video.currentTime = Math.min(Math.max(focusedTextSwitchTime, 0), safeDuration);
+        setShouldStartFromSwitchPoint(false);
+      }
+
+      const isAtEnd = Number.isFinite(video.duration) && video.duration > 0 && video.currentTime >= video.duration - 0.05;
+      if (isAtEnd) {
+        video.currentTime = 0;
+        setManualTimelineShiftPx(0);
+        setTimelineAnimationCycle(prev => prev + 1);
+      }
       void video.play();
       setIsPlaying(true);
     } else {
@@ -264,12 +322,69 @@ export default function App() {
   };
 
   const handleOneClickFix = () => {
+    if (contentType === 'video') {
+      if (activeRiskHint === 'text' && hasTextRisk) {
+        setIsReplacingVideo(true);
+        window.setTimeout(() => {
+          setPendingFixSeekTime(focusedTextSwitchTime);
+          setFixedRiskVideo('/assets/content/risk/video/de_fixed.mp4');
+          setIsReplacingVideo(false);
+          setHasTextRisk(false);
+          setShouldStartFromSwitchPoint(true);
+          setActiveRiskHint(null);
+          setSelectedTimelineTrack(null);
+          setFixStep(1);
+        }, 1000);
+        return;
+      }
+
+      if (activeRiskHint === 'music' && hasMusicRisk) {
+        setPendingFixSeekTime(0);
+        setFixedRiskVideo('/assets/content/risk/video/de_music_fixed.mp4');
+        setHasMusicRisk(false);
+        setShouldStartFromSwitchPoint(false);
+        setActiveRiskHint(null);
+        setSelectedTimelineTrack(null);
+        setManualTimelineShiftPx(0);
+        setTimelineAnimationCycle(prev => prev + 1);
+        setFixStep(2);
+        setIsAllFixed(!hasTextRisk);
+      }
+      return;
+    }
+
     if (fixStep === 1) {
       const nextTrack: TimelineTrack = contentType === 'video' ? 'music' : selectedTimelineTrack;
       commitTimelineEdit(nextTrack, 2);
       return;
     }
     setIsAllFixed(true);
+  };
+
+  const focusOnTextRiskSegment = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasTextRisk) return;
+
+    commitTimelineEdit('text', 1);
+    setActiveRiskHint('text');
+
+    const viewport = timelineViewportRef.current;
+    if (!viewport) {
+      seekAndPauseFixVideo(0);
+      return;
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const segmentRect = event.currentTarget.getBoundingClientRect();
+    const segmentLeftInViewport = segmentRect.left - viewportRect.left;
+    const viewportCenterX = viewportRect.width / 2;
+    const shiftPx = Math.max(0, segmentLeftInViewport - viewportCenterX);
+    setManualTimelineShiftPx(shiftPx);
+
+    // Keep text-switch seek point stable at ~2s for both risk and fixed videos.
+    const switchTime = Math.min(fixTimelineDuration, 2);
+    setFocusedTextSwitchTime(switchTime);
+
+    seekAndPauseFixVideo(switchTime);
   };
 
   const getReviewItemProgress = (index: number) => {
@@ -332,6 +447,11 @@ export default function App() {
   const activeSingleImage = selectedOutcome ? mediaLibrary[selectedOutcome].single : defaultMultiImages[0];
   const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
   const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+  const previewVideo = fixedRiskVideo ?? activeVideo;
+  const totalRiskCount = 2;
+  const fixedRiskCount = Number(!hasTextRisk) + Number(!hasMusicRisk);
+  const isVideoHintVisible = (activeRiskHint === 'text' && hasTextRisk) || (activeRiskHint === 'music' && hasMusicRisk);
+  const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
   const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
   const videoFramesToRender = videoTrackFrames.length > 0
     ? videoTrackFrames
@@ -355,6 +475,17 @@ export default function App() {
     setCurrentImageIndex(0);
     setIsEditorVideoPlaying(true);
     setIsPlaying(false);
+    setFixStep(0);
+    setIsAllFixed(false);
+    setActiveRiskHint(null);
+    setHasTextRisk(true);
+    setHasMusicRisk(true);
+    setIsReplacingVideo(false);
+    setFixedRiskVideo(null);
+    setManualTimelineShiftPx(0);
+    setFocusedTextSwitchTime(0);
+    setTimelineAnimationCycle(0);
+    setShouldStartFromSwitchPoint(false);
     setSelectedTimelineTrack(null);
     setTimelineHistory([]);
     setTimelineHistoryIndex(-1);
@@ -1200,11 +1331,11 @@ export default function App() {
         <div className="relative w-full sm:w-auto sm:h-[90vh] aspect-[1170/2532] bg-black text-white overflow-hidden font-sans shadow-2xl rounded-[40px] border-8 border-black flex flex-col">
           {/* Top Bar (8%) */}
           <div className="h-[8%] flex items-center justify-between px-4 pt-8 z-30 shrink-0">
-            <button onClick={() => setCurrentView('editor')} className="active:scale-90 transition-transform">
+            <button onClick={() => setCurrentView('editor')} className="w-8 h-8 rounded-full flex items-center justify-center bg-white/20 active:scale-95 transition-transform">
               <ChevronLeft size={28} />
             </button>
             <div className="font-medium text-[15px]">
-              {isAllFixed ? '✓ 全部修复完成' : `修复注意项 (${fixStep}/2)`}
+              {isAllFixed ? '✓ 全部修复完成' : `修复注意项 (${fixedRiskCount}/${totalRiskCount})`}
             </div>
             <button 
               onClick={() => { 
@@ -1225,27 +1356,23 @@ export default function App() {
             // Video Layout
             <div className="flex-1 flex flex-col items-center pt-2 px-4 pb-8 min-h-0">
               {/* Video Preview Container */}
-              <div className="w-[60%] h-[48%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative">
+              <div className={`${isAllFixed ? 'w-[86.25%] h-[69%]' : isVideoHintVisible ? 'w-[60%] h-[48%]' : 'w-[73.75%] h-[59%]'} border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative`}>
                 <div className="w-full h-full overflow-hidden relative bg-black flex items-center justify-center">
                   <video 
                     ref={fixVideoRef}
-                    src={activeVideo} 
+                    src={previewVideo} 
                     autoPlay={isPlaying} 
-                    loop 
                     playsInline
                     onLoadedMetadata={handleVideoVolumeReady}
                     onPlay={() => setIsPlaying(true)}
                     onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
                     className="w-full max-h-full h-auto object-contain object-center"
                   />
-
-                  {/* Warning Overlays */}
-                  {!isAllFixed && fixStep === 2 && (
-                    <>
-                      <div className="absolute top-[12%] left-1/2 -translate-x-1/2 text-white text-[17px] font-medium whitespace-nowrap drop-shadow-md z-20 pointer-events-none">
-                        音乐版权受限
-                      </div>
-                    </>
+                  {isReplacingVideo && (
+                    <div className="absolute inset-0 bg-black/45 flex items-center justify-center z-20">
+                      <Loader2 size={30} className="text-white animate-spin" />
+                    </div>
                   )}
                 </div>
               </div>
@@ -1254,7 +1381,7 @@ export default function App() {
                 <div className="mt-auto -translate-y-[16px]">
                   {/* Playback Control Bar */}
                   <div className="h-[40px] flex items-center px-0 justify-between shrink-0 relative">
-                    <span className="text-[14px] font-medium text-white/90">00:00/00:03</span>
+                    <span className="text-[13px] font-medium text-white/90">00:00/00:04</span>
                     <button
                       onClick={toggleFixVideoPlayback}
                       className="absolute left-1/2 -translate-x-1/2 w-[18px] h-[18px] flex items-center justify-center active:scale-95 transition-transform"
@@ -1297,35 +1424,50 @@ export default function App() {
                   </div>
 
                   {/* 3-Track Timeline Area */}
-                  <div className="h-[154px] flex flex-col shrink-0 relative overflow-visible bg-black">
+                  <div ref={timelineViewportRef} className="h-[154px] flex flex-col shrink-0 relative overflow-visible bg-black">
                 <style>{`
                   @keyframes moveTracks {
                     from { transform: translateX(0); }
-                    to { transform: translateX(-50%); }
+                    to { transform: translateX(calc(-33.333% - 80px)); }
                   }
                 `}</style>
                 
-                {/* Time markers */}
-                <div className="h-6 pt-1 flex items-center relative w-full text-white/50 text-[12px] font-medium z-40">
-                  <div className="absolute left-1/2 -translate-x-1/2">00:00</div>
-                  <div className="absolute left-[75%] -translate-x-1/2">00:02</div>
-                  <div className="absolute right-0">00:04</div>
+                {/* Time markers (sync with track movement) */}
+                <div className="h-6 pt-1 relative w-full overflow-hidden text-white/50 text-[12px] font-medium z-40">
+                  <div style={{ transform: `translateX(-${manualTimelineShiftPx}px)` }} className="h-full w-full">
+                    <div
+                      key={`time-markers-${timelineAnimationCycle}`}
+                      className="h-full w-[200%] relative"
+                      style={{
+                        animation: `moveTracks ${fixTimelineDuration}s linear 1 both`,
+                        animationPlayState: isPlaying ? 'running' : 'paused'
+                      }}
+                    >
+                      <div className="absolute left-[25%] -translate-x-1/2">00:00</div>
+                      <div className="absolute left-[37.5%] -translate-x-1/2">00:01</div>
+                      <div className="absolute left-[50%] -translate-x-1/2">00:02</div>
+                      <div className="absolute left-[62.5%] -translate-x-1/2">00:03</div>
+                      <div className="absolute left-[75%] -translate-x-1/2">00:04</div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Time pointer (Fixed in center) */}
                 <div className="absolute left-1/2 top-[32px] h-[140px] w-[2px] bg-white rounded-full z-20 shadow-[0_0_4px_rgba(0,0,0,0.5)] -translate-x-1/2 cursor-ew-resize" />
 
                 {/* Tracks Container (Moves) */}
+                <div style={{ transform: `translateX(-${manualTimelineShiftPx}px)` }} className="h-[calc(100%-6px)] translate-y-[16px]">
                 <div 
-                  className="flex flex-col gap-[6px] relative z-10 h-[calc(100%-6px)] translate-y-[16px] w-[200%]"
+                  key={`tracks-${timelineAnimationCycle}`}
+                  className="flex flex-col gap-[6px] relative z-10 h-full w-[200%]"
                   style={{ 
-                    animation: 'moveTracks 10s linear infinite',
+                    animation: `moveTracks ${fixTimelineDuration}s linear 1 both`,
                     animationPlayState: isPlaying ? 'running' : 'paused'
                   }}
                 >
                   {/* Video Track */}
                   <div
-                    className="h-[52px] flex overflow-hidden relative ml-[25%] w-[50%] rounded-[6px] cursor-pointer bg-[#111317]"
+                    className="h-[52px] flex overflow-hidden relative ml-[25%] w-[calc(33.333%+80px)] rounded-[6px] cursor-pointer bg-[#111317]"
                     onClick={() => {
                       commitTimelineEdit('video', 1);
                     }}
@@ -1352,20 +1494,16 @@ export default function App() {
                         <div className="absolute right-1 top-0 bottom-0 w-1 bg-white rounded-[2px] z-20" />
                       </>
                     )}
-                    {/* Problematic segment */}
-                    {!isAllFixed && fixStep === 1 && (
-                      <div 
-                        className="absolute left-[20%] w-[30%] h-full bg-red-500/30 border-l-2 border-r-2 border-red-500 cursor-pointer"
-                        onClick={() => setFixStep(1)}
-                      />
-                    )}
+
                   </div>
 
                   {/* Music Track */}
                   <div 
-                    className={`h-[32px] rounded-lg relative overflow-hidden ml-[25%] w-[50%] cursor-pointer transition-colors ${!isAllFixed && fixStep === 2 ? 'bg-amber-500' : 'bg-[#8B93FF]'}`}
+                    className={`h-[32px] rounded-lg relative overflow-hidden ml-[25%] w-[calc(33.333%+80px)] cursor-pointer transition-colors ${hasMusicRisk ? 'border-2 border-red-500' : 'border border-transparent'} ${!isAllFixed && fixStep === 2 ? 'bg-amber-500' : 'bg-[#8B93FF]'}`}
                     onClick={() => {
+                      if (!hasMusicRisk) return;
                       commitTimelineEdit('music', 2);
+                      setActiveRiskHint('music');
                     }}
                   >
                     {/* Mirrored audio waveform from sampled audio data */}
@@ -1374,12 +1512,14 @@ export default function App() {
                         <path d={musicWavePath} fill="rgba(56, 93, 223, 0.55)" />
                       </svg>
                     </div>
+                    
+                    {hasMusicRisk && <div className="absolute inset-0 rounded-lg bg-red-500/20 pointer-events-none" />}
 
                     <div className="relative z-10 h-full flex items-center px-3 gap-2.5">
                       <SolidMusicNoteIcon className="w-5 h-5 text-black/65 shrink-0" />
-                      <span className="text-[14px] font-medium text-black/70 truncate">Lazy</span>
+                      <span className="text-[12px] font-medium text-black/70 truncate">{musicTrackTitle}</span>
                     </div>
-                    {!isAllFixed && fixStep === 2 && (
+                    {hasMusicRisk && activeRiskHint === 'music' && (
                       <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/40 text-[10px] px-2 py-0.5 rounded-b-md text-white">
                         受限地区
                       </div>
@@ -1388,32 +1528,37 @@ export default function App() {
 
                   {/* Text Track */}
                   <div
-                    className="h-[32px] bg-[#F4A8E6] rounded-lg relative flex items-center px-3 overflow-hidden ml-[25%] w-[50%] cursor-pointer"
-                    onClick={() => {
-                      commitTimelineEdit('text', 1);
-                    }}
+                    className="h-[32px] relative overflow-visible ml-[25%] w-[33.333%]"
                   >
-                    <span className="text-[14px] font-medium text-black/70 truncate">新年快乐</span>
-                    {!isAllFixed && fixStep === 1 && (
-                      <div 
-                        className="absolute left-[20%] w-[30%] h-full border-2 border-red-500 bg-red-500/20 flex items-center px-1 cursor-pointer"
-                        onClick={() => setFixStep(1)}
-                      >
-                        <AlertCircle size={14} className="text-white drop-shadow-md" />
-                      </div>
-                    )}
+                    <div
+                      className="absolute top-0 left-0 h-full rounded-lg bg-[#F4A8E6] px-3 flex items-center gap-2.5"
+                      style={{ width: '172px' }}
+                    >
+                      <SolidTextIcon className="w-3 h-3 text-black/65 shrink-0" />
+                      <span className="text-[12px] font-medium text-black/70 truncate">I am a kitty</span>
+                    </div>
+                    <div
+                      className={`absolute top-0 h-full rounded-lg bg-[#F4A8E6] px-3 flex items-center relative gap-2.5 ${hasTextRisk ? 'border-2 border-red-500 cursor-pointer' : 'border border-transparent'}`}
+                      style={{ left: '174px', width: '126px' }}
+                      onClick={focusOnTextRiskSegment}
+                    >
+                      {hasTextRisk && <div className="absolute inset-0 rounded-lg bg-red-500/20 pointer-events-none" />}
+                      <SolidTextIcon className="w-3 h-3 text-black/65 shrink-0 relative z-10" />
+                      <span className="text-[12px] font-medium text-black/70 truncate relative z-10">but I am depressed</span>
+                    </div>
                   </div>
+                </div>
                 </div>
                   </div>
                 </div>
 
                 {/* Hint Box (Video) */}
-                {!isAllFixed && (
+                {!isAllFixed && isVideoHintVisible && (
                   <div className="mt-4 -mx-1 bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-2">
                     <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-[12px] text-white/90">
-                        {fixStep === 1 ? '视频中文字含敏感词：「精神健康」类话题限制分发' : '音乐在部分地区版权受限'}
+                        {activeRiskHint === 'text' ? '视频中文字含[精神健康]类话题敏感词' : '音乐在部分地区版权受限'}
                       </p>
                     </div>
                     <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
