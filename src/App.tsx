@@ -152,8 +152,9 @@ export default function App() {
 
   const DepressedMarkerIcon = ({ className = '', style }: { className?: string; style?: React.CSSProperties }) => (
     <svg viewBox="0 0 103 121" className={className} style={style} fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-      <path d="M51.382 116.689C50.6229 116.689 49.8939 116.394 49.3473 115.868L49.3186 115.839L17.8756 84.5114L17.875 84.5108C4.33056 71.0246 0.279003 50.7437 7.60044 33.1243C14.923 15.5023 32.1881 4.00005 51.3527 4C70.5173 4 87.7826 15.5038 95.1049 33.1261C102.427 50.7455 98.3749 71.0252 84.8349 84.5079L84.8326 84.5102L53.4477 115.836C52.8983 116.382 52.1559 116.689 51.382 116.689Z" fill="#FE7260" stroke="white" strokeWidth="8" />
-      <path d="M74.5145 35.0645C75.645 35.0645 76.5594 35.9833 76.5594 37.1133V45.5947C76.5592 47.1727 75.2827 48.4541 73.7059 48.4541H72.2352C70.6585 48.4539 69.3828 47.1726 69.3826 45.5947V44.1191C69.3825 43.0908 68.5516 42.26 67.5301 42.2598H56.7947C55.7729 42.2598 54.9414 43.0906 54.9412 44.1191V76.5693C54.9412 77.5979 55.7728 78.4297 56.7947 78.4297H61.3533C62.9301 78.4298 64.2057 79.7113 64.2059 81.2891V82.7646C64.2058 84.3425 62.9302 85.6239 61.3533 85.624H41.3533C39.7764 85.624 38.4999 84.3426 38.4998 82.7646V81.2891C38.5 79.7112 39.7764 78.4297 41.3533 78.4297H45.9119C46.9338 78.4297 47.7645 77.5979 47.7645 76.5693V44.1191C47.7643 43.0906 46.9337 42.2598 45.9119 42.2598H35.1766C34.1548 42.2598 33.3242 43.0907 33.324 44.1191V45.5947C33.3239 47.1727 32.0475 48.4541 30.4705 48.4541H28.9998C27.4231 48.4539 26.1474 47.1726 26.1473 45.5947V37.9248L26.1619 37.6318C26.3081 36.191 27.5217 35.0647 28.9998 35.0645H74.5145Z" fill="white" stroke="white" />
+      <path d="M51.3821 116.689C50.6229 116.689 49.894 116.394 49.3474 115.868L49.3187 115.839L17.8756 84.5114L17.8751 84.5108C4.33062 71.0246 0.279064 50.7437 7.60051 33.1243C14.923 15.5023 32.1882 4.00005 51.3528 4C70.5173 4 87.7826 15.5038 95.105 33.1261C102.427 50.7455 98.375 71.0252 84.835 84.5079L84.8326 84.5102L53.4478 115.836C52.8983 116.382 52.1559 116.689 51.3821 116.689Z" fill="#FE7260" stroke="white" strokeWidth="8" />
+      <path d="M32.3533 41.8447C32.3533 43.5686 33.0381 45.2219 34.2571 46.4409C35.4761 47.6599 37.1294 48.3447 38.8533 48.3447C40.5772 48.3447 42.2305 47.6599 43.4495 46.4409C44.6685 45.2219 45.3533 43.5686 45.3533 41.8447C45.3533 40.1208 44.6685 38.4675 43.4495 37.2485C42.2305 36.0295 40.5772 35.3447 38.8533 35.3447C37.1294 35.3447 35.4761 36.0295 34.2571 37.2485C33.0381 38.4675 32.3533 40.1208 32.3533 41.8447Z" fill="white" />
+      <path d="M36.6353 56.9318C40.8975 56.9318 45.0193 67.4641 50.8194 67.4641C56.6204 67.4641 58.446 49.7246 65.0268 49.7246C71.6086 49.7246 76.6592 63.8681 78.4192 69.9793C80.1797 76.0905 78.1662 78.0352 69.2709 78.0352C60.375 78.0352 32.1263 77.654 28.585 77.654C25.0429 77.654 22.9096 74.9772 25.3253 69.8194C27.7402 64.6605 32.3732 56.9309 36.6353 56.9309V56.9318Z" fill="white" />
     </svg>
   );
 
@@ -368,12 +369,9 @@ export default function App() {
       return;
     }
 
-    if (fixStep === 1) {
-      const nextTrack: TimelineTrack = contentType === 'video' ? 'music' : selectedTimelineTrack;
-      commitTimelineEdit(nextTrack, 2);
-      return;
-    }
     setIsAllFixed(true);
+    setSelectedTimelineTrack(null);
+    setFixStep(1);
   };
 
   const focusOnTextRiskSegment = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -463,8 +461,10 @@ export default function App() {
   const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
   const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
   const previewVideo = fixedRiskVideo ?? activeVideo;
-  const totalRiskCount = 2;
-  const fixedRiskCount = Number(!hasTextRisk) + Number(!hasMusicRisk);
+  const isImageRiskScenario = selectedOutcome === 'risk' && (contentType === 'single' || contentType === 'multi');
+  const totalRiskCount = contentType === 'video' ? 2 : 1;
+  const fixedRiskCount = contentType === 'video' ? Number(!hasTextRisk) + Number(!hasMusicRisk) : Number(isAllFixed);
+  const unresolvedRiskCount = Math.max(totalRiskCount - fixedRiskCount, 0);
   const isVideoHintVisible = (activeRiskHint === 'text' && hasTextRisk) || (activeRiskHint === 'music' && hasMusicRisk);
   const depressedMarkerWidthPct = 20;
   const depressedMarkerGapPct = (12 / 2532) * 100;
@@ -476,6 +476,11 @@ export default function App() {
     hasTextRisk &&
     fixVideoCurrentTime >= depressedSwitchTime &&
     fixVideoCurrentTime < Math.max(fixTimelineDuration - 0.05, depressedSwitchTime + 0.01);
+  const shouldShowImageDepressedMarker =
+    contentType !== 'video' &&
+    selectedOutcome === 'risk' &&
+    !isAllFixed &&
+    fixStep === 1;
   const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
   const aiReviewIconIntroVideo = '/assets/ai/review/icon-intro.mp4';
   const aiReviewIconLoopVideo = '/assets/ai/review/icon-loop.mp4';
@@ -1391,7 +1396,7 @@ export default function App() {
               <ChevronLeft size={28} />
             </button>
             <div className="font-medium text-[15px]">
-              {isAllFixed ? '✓ 全部修复完成' : `修复注意项 (${fixedRiskCount}/${totalRiskCount})`}
+              {isAllFixed ? '✓ 全部修复完成' : `修复风险项 (${fixedRiskCount}/${totalRiskCount})`}
             </div>
             <button 
               onClick={() => { 
@@ -1433,7 +1438,7 @@ export default function App() {
                   {shouldShowDepressedMarker && (
                     <div
                       className="absolute left-1/2 z-20 pointer-events-none"
-                      style={{ bottom: '18%', transform: `translate(calc(-50% + 90px), calc(-100% - ${depressedMarkerGapPct}%))` }}
+                      style={{ bottom: '18%', transform: `translate(calc(-50% + 154px), calc(-100% - ${depressedMarkerGapPct}% - 80px))` }}
                     >
                       <DepressedMarkerIcon style={{ width: `${depressedMarkerWidthPct}%`, height: 'auto' }} className="block" />
                     </div>
@@ -1686,7 +1691,7 @@ export default function App() {
             // Image Layout (Single/Multi)
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
               {/* Media Viewport Container */}
-              <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0">
+              <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative">
                 {contentType === 'multi' ? (
                   <div
                     ref={fixScrollContainerRef}
@@ -1712,6 +1717,14 @@ export default function App() {
                     className="w-full h-full object-contain"
                     alt="Media"
                   />
+                )}
+                {shouldShowImageDepressedMarker && (
+                  <div
+                    className="absolute left-1/2 z-20 pointer-events-none"
+                    style={{ bottom: '18%', transform: `translate(calc(-50% + 154px), calc(-100% - ${depressedMarkerGapPct}% - 80px))` }}
+                  >
+                    <DepressedMarkerIcon style={{ width: `${depressedMarkerWidthPct}%`, height: 'auto' }} className="block" />
+                  </div>
                 )}
               </div>
 
@@ -1773,7 +1786,7 @@ export default function App() {
                     <AlertCircle size={16} className="text-[#FE2C55] shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-[12px] text-white/90">
-                        {fixStep === 1 ? '画面内容检测到可能违反「安全与礼貌」准则' : '视频中文字含敏感词：「精神健康」类话题限制分发'}
+                        画面内容检测到可能违反「安全与礼貌」准则
                       </p>
                     </div>
                     <button className="text-[10px] text-white/50 whitespace-nowrap flex items-center">
@@ -1921,20 +1934,29 @@ export default function App() {
                 </div>
 
                 <p className="text-[14px] text-white/80 mb-6 leading-relaxed">
-                  你有 {fixStep === 1 ? 2 : 1} 项未修复的注意项：
+                  你有 {unresolvedRiskCount} 项未修复的风险项：
                 </p>
 
                 <div className="flex flex-col gap-3 mb-8">
-                  {fixStep === 1 && (
+                  {isImageRiskScenario ? (
                     <div className="flex items-center gap-2 text-[14px] text-white/90">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
-                      视频中文字含敏感词：「精神健康」类话题限制分发
+                      画面内容含暴露内容，可能会触发过滤器影响流量
                     </div>
+                  ) : (
+                    <>
+                      {fixStep === 1 && (
+                        <div className="flex items-center gap-2 text-[14px] text-white/90">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
+                          视频中文字含敏感词：「精神健康」类话题限制分发
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-[14px] text-white/90">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
+                        音乐在部分地区版权受限
+                      </div>
+                    </>
                   )}
-                  <div className="flex items-center gap-2 text-[14px] text-white/90">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#FE2C55]" />
-                    音乐在部分地区版权受限
-                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -2391,7 +2413,7 @@ export default function App() {
                         setAiReviewIconPhase('loop');
                       }
                     }}
-                    className="w-[72px] h-[48px] object-cover"
+                    className="w-[72px] h-[48px] object-cover rounded-[16px]"
                     style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
                   />
                 ) : (
@@ -2401,7 +2423,7 @@ export default function App() {
                     loop
                     muted
                     playsInline
-                    className="w-[72px] h-[48px] object-cover"
+                    className="w-[72px] h-[48px] object-cover rounded-[16px]"
                     style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
                   />
                 )}
@@ -2601,29 +2623,45 @@ export default function App() {
               <div className="h-[1px] bg-white/10 -mx-5 mb-4" />
 
               <div className="flex flex-col gap-4 mb-5">
-                <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="shrink-0 mt-0.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
-                      <Volume2 size={16} className="text-[#FE2C55]" />
+                {isImageRiskScenario ? (
+                  <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
+                        <Eye size={16} className="text-[#FE2C55]" />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-[15px] font-semibold mb-0.5 leading-none">画面内容含暴露内容</h3>
+                      <p className="text-[13px] text-white/60 leading-relaxed">可能会触发过滤器影响流量</p>
                     </div>
                   </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">音乐版权受区域限制</h3>
-                    <p className="text-[13px] text-white/60 leading-relaxed">部分地区用户无法收听</p>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="shrink-0 mt-0.5">
+                        <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
+                          <Volume2 size={16} className="text-[#FE2C55]" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-semibold mb-0.5 leading-none">音乐版权受区域限制</h3>
+                        <p className="text-[13px] text-white/60 leading-relaxed">部分地区用户无法收听</p>
+                      </div>
+                    </div>
 
-                <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="shrink-0 mt-0.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
-                      <FileText size={16} className="text-[#FE2C55]" />
+                    <div className="flex items-start gap-3 py-3 px-3.5 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="shrink-0 mt-0.5">
+                        <div className="w-8 h-8 rounded-full bg-[#FE2C55]/20 flex items-center justify-center">
+                          <FileText size={16} className="text-[#FE2C55]" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-semibold mb-0.5 leading-none">视频中文字含敏感词</h3>
+                        <p className="text-[13px] text-white/60 leading-relaxed">「精神健康」类话题限制分发</p>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold mb-0.5 leading-none">视频中文字含敏感词</h3>
-                    <p className="text-[13px] text-white/60 leading-relaxed">「精神健康」类话题限制分发</p>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
 
               <button 
