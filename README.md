@@ -11,6 +11,14 @@
 
 </div>
 
+## 目录
+
+1. 一、思路起源
+2. 二、产品概述
+3. 三、原型演示
+4. 四、原型交互指引
+5. 五、Vibe Coding 技术说明
+
 ---
 
 ## 一、思路起源
@@ -118,3 +126,19 @@
 > 推荐使用 Chrome 浏览器打开，以获得最佳体验效果。
 
 ---
+
+## 四、原型交互指引
+
+以下为用户操作路径，建议按步骤体验：
+
+![原型交互指引](./docs/readme-assets/images/prototype-user-flow.png)
+
+---
+
+## 五、Vibe Coding 技术说明
+
+项目基于 `React 19 + TypeScript + Vite` 搭建，使用 `Tailwind CSS v4` 完成界面样式，并结合 `motion` 实现关键动效。  
+原型核心交互主要集中在单页面组件 `src/App.tsx` 中，静态图片、视频与图标资源存放于 `public/assets`。  
+基础原型框架由 Google AI Studio 辅助生成，随后同步至 GitHub 仓库，并在 VS Code 中围绕交互逻辑、视觉细节和状态流转持续迭代。  
+项目通过 Vercel 部署，生成在线预览 URL，便于演示、评审和分享。  
+本地运行方式为安装依赖后执行 `npm run dev`，构建命令为 `npm run build`。
