@@ -57,22 +57,10 @@
   </tr>
 </table>
 
-<table width="100%" cellspacing="0" cellpadding="0">
-  <tr>
-    <td>
-      <table width="100%" border="1" cellspacing="0" cellpadding="18" bordercolor="#FE2C55" bgcolor="#FFF1F4">
-        <tr>
-          <td align="center">
-            <strong>❓ 设计问题</strong>
-            <br />
-            <br />
-            <strong>能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？</strong>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+<div align="center">
+  <h3>❓ 设计问题</h3>
+  <p><strong>能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？</strong></p>
+</div>
 
 ---
 
