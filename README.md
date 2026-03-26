@@ -28,7 +28,7 @@
       </blockquote>
     </td>
     <td width="28%" align="right" valign="top">
-      <img src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="220" />
+      <img src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="180" />
     </td>
   </tr>
 </table>
@@ -52,18 +52,27 @@
       <p><strong>创作者在发布前对内容的合规状态几乎完全没有感知。<br />所有反馈往往都发生在发布之后：<br />视频被删了、被限流了、数据崩了，<br />才知道出了问题。</strong></p>
     </td>
     <td width="32%" align="right" valign="top">
-      <img src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="260" />
+      <img src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="300" />
     </td>
   </tr>
 </table>
 
-<div align="center">
-
-### ❓ 设计问题
-
-**能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？**
-
-</div>
+<table width="100%" cellspacing="0" cellpadding="0">
+  <tr>
+    <td>
+      <table width="100%" border="1" cellspacing="0" cellpadding="18" bordercolor="#FE2C55" bgcolor="#FFF1F4">
+        <tr>
+          <td align="center">
+            <strong>❓ 设计问题</strong>
+            <br />
+            <br />
+            <strong>能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？</strong>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 
 ---
 
