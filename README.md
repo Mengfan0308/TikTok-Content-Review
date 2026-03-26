@@ -15,64 +15,51 @@
 
 ## 一、思路起源
 
-<table>
-  <tr>
-    <td width="72%" valign="top">
-      <h3>🎙️ 用户访谈</h3>
-      <p>在深入体验 TikTok 创作链路后，<br />我对身边的创作者朋友进行了访谈。</p>
-      <p>一位拥有数万粉丝的博主朋友说：</p>
-      <blockquote>
-        “每次发完就会频繁查看自己的流量数据，如果有数据出奇不好的，<br />
-        我们就会怀疑是不是自己的内容有什么违禁词被限流了。<br />
-        希望有一个机器人之类的帮我们审查一遍违禁词。”
-      </blockquote>
-    </td>
-    <td width="28%" align="right" valign="top">
-      <img src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="180" />
-    </td>
-  </tr>
-</table>
+<img align="right" src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="150" />
+
+### 🎙️ 用户访谈
+
+<p>在深入体验 TikTok 创作链路后，<br />我对身边的创作者朋友进行了访谈。</p>
+
+<p>一位拥有数万粉丝的博主朋友说：</p>
+
+<blockquote>
+  “每次发完就会频繁查看自己的流量数据，如果有数据出奇不好的，<br />
+  我们就会怀疑是不是自己的内容有什么违禁词被限流了。<br />
+  希望有一个机器人之类的帮我们审查一遍违禁词。”
+</blockquote>
+
+<br clear="right" />
 
 <br />
 
-<table>
-  <tr>
-    <td width="68%" valign="top">
-      <h3>📡 行业观察</h3>
-      <p>
-        2025 年春节期间，某头部博主<br />
-        发布了一条精心制作的长视频，<br />
-        但因背景音乐未通过抖音版权审核，<br />
-        被迫先发布 <strong>无声版本</strong>，<br />
-        完整版转至 B 站发布。<br />
-        这一操作意外为 B 站<br />
-        带来了大量跨平台流量。
-      </p>
-      <p>这件事让我意识到一个结构性问题：</p>
-      <p><strong>创作者在发布前对内容的合规状态几乎完全没有感知。<br />所有反馈往往都发生在发布之后：<br />视频被删了、被限流了、数据崩了，<br />才知道出了问题。</strong></p>
-    </td>
-    <td width="32%" align="right" valign="top">
-      <img src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="300" />
-    </td>
-  </tr>
-</table>
+<img align="right" src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="340" />
 
-<table width="100%" cellspacing="0" cellpadding="0">
-  <tr>
-    <td>
-      <table width="100%" border="1" cellspacing="0" cellpadding="18" bordercolor="#FE2C55" bgcolor="#FFF1F4">
-        <tr>
-          <td align="center">
-            <strong>❓ 设计问题</strong>
-            <br />
-            <br />
-            <strong>能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？</strong>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
+### 📡 行业观察
+
+<p>
+  2025 年春节期间，某头部博主<br />
+  发布了一条精心制作的长视频，<br />
+  但因背景音乐未通过抖音版权审核，<br />
+  被迫先发布 <strong>无声版本</strong>，<br />
+  完整版转至 B 站发布。<br />
+  这一操作意外为 B 站<br />
+  带来了大量跨平台流量。
+</p>
+
+<p>这件事让我意识到一个结构性问题：</p>
+
+<p><strong>创作者在发布前对内容的合规状态几乎完全没有感知。<br />所有反馈往往都发生在发布之后：<br />视频被删了、被限流了、数据崩了，<br />才知道出了问题。</strong></p>
+
+<br clear="right" />
+
+<div align="center">
+
+### ❓ 设计问题
+
+**能否在内容创作完成后，借助 AI 审查内容是否存在违规风险（文字、画面、声音等），让创作者在发布前主动知道？**
+
+</div>
 
 ---
 
