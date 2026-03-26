@@ -112,6 +112,7 @@ export default function App() {
   const [timelineAnimationCycle, setTimelineAnimationCycle] = useState(0);
   const [shouldStartFromSwitchPoint, setShouldStartFromSwitchPoint] = useState(false);
   const [fixVideoCurrentTime, setFixVideoCurrentTime] = useState(0);
+  const [aiReviewIconPhase, setAiReviewIconPhase] = useState<'intro' | 'loop'>('intro');
   const currentImageIndexRef = React.useRef(0);
   const editorVideoRef = React.useRef<HTMLVideoElement>(null);
   const fixVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -481,6 +482,7 @@ export default function App() {
     !isAllFixed &&
     fixStep === 1;
   const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
+  // 已移除AI审查按钮视频资产
   const publishVideoThumbnail = videoTrackFrames[0] ?? activeSingleImage;
   const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
   const videoFramesToRender = videoTrackFrames.length > 0
@@ -866,6 +868,7 @@ export default function App() {
     if (enabledReviewItems.length === 0) {
       return;
     }
+    setAiReviewIconPhase('intro');
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
@@ -879,6 +882,12 @@ export default function App() {
       setReviewProgress(0);
     }
   };
+
+  useEffect(() => {
+    if (!isReviewing) {
+      setAiReviewIconPhase('intro');
+    }
+  }, [isReviewing]);
 
   const toggleReviewCheck = (key: ReviewCheckKey) => {
     setReviewChecks(prev => ({ ...prev, [key]: !prev[key] }));
@@ -2381,36 +2390,31 @@ export default function App() {
 
           {/* AI Review Button */}
           <div className="w-[42px] shrink-0 flex justify-center pointer-events-auto">
-            <button 
+            <button
+              type="button"
+              className={`flex flex-col items-center justify-center transition-transform relative select-none ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+              style={{ width: 42, minWidth: 42 }}
+              disabled={isReviewing}
               onClick={() => {
-                if (!isReviewing) {
-                  setShowAIPopup(true);
-                }
+                if (!isReviewing) setShowAIPopup(true);
               }}
-              className={`relative flex flex-col items-center justify-center transition-transform ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
-              aria-label="AI 审查"
             >
-              <div className="relative flex h-[28px] items-center gap-1 mb-1">
-                <div
-                  className="flex h-4 w-4 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: '#20D5EC',
-                    boxShadow: '0 0 8px rgba(32, 213, 236, 0.8)'
-                  }}
-                >
-                  <div className="h-[7px] w-[7px] rounded-full bg-[#333333]" />
+              <div className="flex flex-col items-center justify-center h-[42px] w-[42px] relative">
+                {/* 双圆icon */}
+                <div className="flex items-center gap-1 mb-1 h-[28px]" style={{ width: 42 }}>
+                  {/* 左圆 */}
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#20D5EC', boxShadow: '0 0 8px rgba(32,213,236,0.8)' }}>
+                    <div className="w-[7px] h-[7px] rounded-full bg-[#333]" />
+                  </div>
+                  {/* 右圆 */}
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#FE2C55', boxShadow: '0 0 8px rgba(254,44,85,0.8)' }}>
+                    <div className="w-[7px] h-[7px] rounded-full bg-[#333]" />
+                  </div>
                 </div>
-                <div
-                  className="flex h-4 w-4 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: '#FE2C55',
-                    boxShadow: '0 0 8px rgba(254, 44, 85, 0.8)'
-                  }}
-                >
-                  <div className="h-[7px] w-[7px] rounded-full bg-[#333333]" />
-                </div>
-                <div className="absolute -bottom-1.5 -right-3.5 flex h-[10px] items-center justify-center rounded-[2px] border border-white/10 bg-gray-500/50 px-1 backdrop-blur-sm overflow-visible">
-                  <span className="text-[9px] font-bold leading-none tracking-wider text-white">AI</span>
+                {/* AI角标 右上角 */}
+                <div className="absolute -top-[6px] -right-[14px] bg-gray-500/50 backdrop-blur-sm rounded-[4px] px-1 py-[2px] border border-white/10 flex items-center justify-center"
+                  style={{ fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: 1, borderRadius: 4 }}>
+                  <span className="text-[9px] font-bold text-white leading-none tracking-wider">AI</span>
                 </div>
               </div>
             </button>
