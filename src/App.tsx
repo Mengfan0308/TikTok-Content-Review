@@ -112,7 +112,6 @@ export default function App() {
   const [timelineAnimationCycle, setTimelineAnimationCycle] = useState(0);
   const [shouldStartFromSwitchPoint, setShouldStartFromSwitchPoint] = useState(false);
   const [fixVideoCurrentTime, setFixVideoCurrentTime] = useState(0);
-  const [aiReviewIconPhase, setAiReviewIconPhase] = useState<'intro' | 'loop'>('intro');
   const currentImageIndexRef = React.useRef(0);
   const editorVideoRef = React.useRef<HTMLVideoElement>(null);
   const fixVideoRef = React.useRef<HTMLVideoElement>(null);
@@ -482,8 +481,6 @@ export default function App() {
     !isAllFixed &&
     fixStep === 1;
   const musicTrackTitle = hasMusicRisk ? 'Lazy' : 'Fuzzy feeling';
-  const aiReviewIconIntroVideo = '/assets/ai/review/icon-intro.mp4';
-  const aiReviewIconLoopVideo = '/assets/ai/review/icon-loop.mp4';
   const publishVideoThumbnail = videoTrackFrames[0] ?? activeSingleImage;
   const videoFrameWidth = Math.max(1, Math.round(52 * videoFrameAspectRatio));
   const videoFramesToRender = videoTrackFrames.length > 0
@@ -869,7 +866,6 @@ export default function App() {
     if (enabledReviewItems.length === 0) {
       return;
     }
-    setAiReviewIconPhase('intro');
     setIsReviewing(true);
     setShowReviewUI(true);
     setReviewProgress(0);
@@ -883,12 +879,6 @@ export default function App() {
       setReviewProgress(0);
     }
   };
-
-  useEffect(() => {
-    if (!isReviewing) {
-      setAiReviewIconPhase('intro');
-    }
-  }, [isReviewing]);
 
   const toggleReviewCheck = (key: ReviewCheckKey) => {
     setReviewChecks(prev => ({ ...prev, [key]: !prev[key] }));
@@ -2390,46 +2380,37 @@ export default function App() {
           )}
 
           {/* AI Review Button */}
-          <div className="w-[72px] shrink-0 flex justify-center pointer-events-auto">
+          <div className="w-[42px] shrink-0 flex justify-center pointer-events-auto">
             <button 
               onClick={() => {
                 if (!isReviewing) {
                   setShowAIPopup(true);
                 }
               }}
-              className={`flex flex-col items-center justify-center transition-transform relative ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+              className={`relative flex flex-col items-center justify-center transition-transform ${isReviewing ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+              aria-label="AI 审查"
             >
-              <div className="flex items-center justify-center gap-1 mb-1 h-[48px] relative">
-                {isReviewing ? (
-                  <video
-                    key={aiReviewIconPhase}
-                    src={aiReviewIconPhase === 'intro' ? aiReviewIconIntroVideo : aiReviewIconLoopVideo}
-                    autoPlay
-                    loop={aiReviewIconPhase === 'loop'}
-                    muted
-                    playsInline
-                    onEnded={() => {
-                      if (aiReviewIconPhase === 'intro') {
-                        setAiReviewIconPhase('loop');
-                      }
-                    }}
-                    className="w-[72px] h-[48px] object-cover rounded-[16px]"
-                    style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
-                  />
-                ) : (
-                  <video
-                    src={aiReviewIconLoopVideo}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="w-[72px] h-[48px] object-cover rounded-[16px]"
-                    style={{ transform: 'translate(10px, 7px) scale(0.7)', transformOrigin: 'center' }}
-                  />
-                )}
-                {/* AI Tag */}
-                <div className="absolute -bottom-[4px] -right-[4px] bg-gray-500/50 backdrop-blur-sm rounded-[4px] px-1 py-[2px] border border-white/10 flex items-center justify-center">
-                  <span className="text-[9px] font-bold text-white leading-none tracking-wider">AI</span>
+              <div className="relative flex h-[28px] items-center gap-1 mb-1">
+                <div
+                  className="flex h-4 w-4 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: '#20D5EC',
+                    boxShadow: '0 0 8px rgba(32, 213, 236, 0.8)'
+                  }}
+                >
+                  <div className="h-[7px] w-[7px] rounded-full bg-[#333333]" />
+                </div>
+                <div
+                  className="flex h-4 w-4 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: '#FE2C55',
+                    boxShadow: '0 0 8px rgba(254, 44, 85, 0.8)'
+                  }}
+                >
+                  <div className="h-[7px] w-[7px] rounded-full bg-[#333333]" />
+                </div>
+                <div className="absolute -bottom-1.5 -right-3.5 flex h-[10px] items-center justify-center rounded-[2px] border border-white/10 bg-gray-500/50 px-1 backdrop-blur-sm overflow-visible">
+                  <span className="text-[9px] font-bold leading-none tracking-wider text-white">AI</span>
                 </div>
               </div>
             </button>
