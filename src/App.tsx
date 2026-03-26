@@ -158,6 +158,14 @@ export default function App() {
     </svg>
   );
 
+  const VideoRiskMarkerIcon = ({ className = '', style }: { className?: string; style?: React.CSSProperties }) => (
+    <svg viewBox="0 0 103 132" className={className} style={style} fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <path d="M51.382 116.689C50.6229 116.689 49.8939 116.394 49.3473 115.868L49.3186 115.839L17.8756 84.5114L17.875 84.5108C4.33056 71.0246 0.279003 50.7437 7.60044 33.1243C14.923 15.5023 32.1881 4.00005 51.3527 4C70.5173 4 87.7826 15.5038 95.1049 33.1261C102.427 50.7455 98.3749 71.0252 84.8349 84.5079L84.8326 84.5102L53.4477 115.836C52.8983 116.382 52.1559 116.689 51.382 116.689Z" fill="#FE7260" stroke="white" strokeWidth="8" />
+      <path d="M74.5145 35.0645C75.645 35.0645 76.5594 35.9833 76.5594 37.1133V45.5947C76.5592 47.1727 75.2827 48.4541 73.7059 48.4541H72.2352C70.6585 48.4539 69.3828 47.1726 69.3826 45.5947V44.1191C69.3825 43.0908 68.5516 42.26 67.5301 42.2598H56.7947C55.7729 42.2598 54.9414 43.0906 54.9412 44.1191V76.5693C54.9412 77.5979 55.7728 78.4297 56.7947 78.4297H61.3533C62.9301 78.4298 64.2057 79.7113 64.2059 81.2891V82.7646C64.2058 84.3425 62.9302 85.6239 61.3533 85.624H41.3533C39.7764 85.624 38.4999 84.3426 38.4998 82.7646V81.2891C38.5 79.7112 39.7764 78.4297 41.3533 78.4297H45.9119C46.9338 78.4297 47.7645 77.5979 47.7645 76.5693V44.1191C47.7643 43.0906 46.9337 42.2598 45.9119 42.2598H35.1766C34.1548 42.2598 33.3242 43.0907 33.324 44.1191V45.5947C33.3239 47.1727 32.0475 48.4541 30.4705 48.4541H28.9998C27.4231 48.4539 26.1474 47.1726 26.1473 45.5947V37.9248L26.1619 37.6318C26.3081 36.191 27.5217 35.0647 28.9998 35.0645H74.5145Z" fill="white" stroke="white" />
+      <rect x="17.3531" y="119.345" width="19" height="12" fill="#D9D9D9" />
+    </svg>
+  );
+
   const ExpandCornersIcon = ({ className = '' }: { className?: string }) => (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
       <path d="M9 4H6a2 2 0 0 0-2 2v3" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -466,8 +474,31 @@ export default function App() {
   const fixedRiskCount = contentType === 'video' ? Number(!hasTextRisk) + Number(!hasMusicRisk) : Number(isAllFixed);
   const unresolvedRiskCount = Math.max(totalRiskCount - fixedRiskCount, 0);
   const isVideoHintVisible = (activeRiskHint === 'text' && hasTextRisk) || (activeRiskHint === 'music' && hasMusicRisk);
-  const depressedMarkerWidthPct = 20;
-  const depressedMarkerGapPct = (12 / 2532) * 100;
+  const previewMediaAspectRatio = 1170 / 2532;
+  const previewVideoAspectRatio = videoFrameAspectRatio > 0 ? videoFrameAspectRatio : previewMediaAspectRatio;
+  const imageDepressedMarkerWidthPct = 20;
+  const imageDepressedMarkerTipXRatio = 51.3821 / 103;
+  const imageDepressedMarkerTipYRatio = 116.689 / 121;
+  const depressedMarkerAnchorXPct = (738.667 / 1170) * 100;
+  const depressedMarkerAnchorYPct = (1974.563 / 2532) * 100;
+  const imageDepressedMarkerStyle: React.CSSProperties = {
+    left: `${depressedMarkerAnchorXPct}%`,
+    top: `${depressedMarkerAnchorYPct}%`,
+    width: `${imageDepressedMarkerWidthPct}%`,
+    height: 'auto',
+    transform: `translate(-${imageDepressedMarkerTipXRatio * 100}%, -${imageDepressedMarkerTipYRatio * 100}%)`,
+  };
+  const videoDepressedMarkerWidthPct = 17;
+  const videoDepressedMarkerTipXRatio = 51.382 / 103;
+  const videoDepressedMarkerTipYRatio = 116.689 / 132;
+  const videoDepressedMarkerAnchorYPct = depressedMarkerAnchorYPct + 1.6;
+  const videoDepressedMarkerStyle: React.CSSProperties = {
+    left: `${depressedMarkerAnchorXPct}%`,
+    top: `${videoDepressedMarkerAnchorYPct}%`,
+    width: `${videoDepressedMarkerWidthPct}%`,
+    height: 'auto',
+    transform: `translate(-${videoDepressedMarkerTipXRatio * 100}%, -${videoDepressedMarkerTipYRatio * 100}%)`,
+  };
   const depressedSwitchTime = focusedTextSwitchTime > 0 ? focusedTextSwitchTime : 2;
   const shouldShowDepressedMarker =
     contentType === 'video' &&
@@ -1418,30 +1449,27 @@ export default function App() {
               {/* Video Preview Container */}
               <div className={`${isAllFixed ? 'w-[86.25%] h-[69%]' : isVideoHintVisible ? 'w-[60%] h-[48%]' : 'w-[73.75%] h-[59%]'} border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative`}>
                 <div className="w-full h-full overflow-hidden relative bg-black flex items-center justify-center">
-                  <video 
-                    ref={fixVideoRef}
-                    src={previewVideo} 
-                    autoPlay={isPlaying} 
-                    playsInline
-                    onLoadedMetadata={handleVideoVolumeReady}
-                    onTimeUpdate={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
-                    onSeeked={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onEnded={(e) => {
-                      setIsPlaying(false);
-                      setFixVideoCurrentTime(e.currentTarget.duration || fixTimelineDuration);
-                    }}
-                    className="w-full max-h-full h-auto object-contain object-center"
-                  />
-                  {shouldShowDepressedMarker && (
-                    <div
-                      className="absolute left-1/2 z-20 pointer-events-none"
-                      style={{ bottom: '18%', transform: `translate(calc(-50% + 154px), calc(-100% - ${depressedMarkerGapPct}% - 80px))` }}
-                    >
-                      <DepressedMarkerIcon style={{ width: `${depressedMarkerWidthPct}%`, height: 'auto' }} className="block" />
-                    </div>
-                  )}
+                  <div className="relative w-full shrink-0" style={{ aspectRatio: `${previewVideoAspectRatio}` }}>
+                    <video 
+                      ref={fixVideoRef}
+                      src={previewVideo} 
+                      autoPlay={isPlaying} 
+                      playsInline
+                      onLoadedMetadata={handleVideoVolumeReady}
+                      onTimeUpdate={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
+                      onSeeked={(e) => setFixVideoCurrentTime(e.currentTarget.currentTime)}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={(e) => {
+                        setIsPlaying(false);
+                        setFixVideoCurrentTime(e.currentTarget.duration || fixTimelineDuration);
+                      }}
+                      className="w-full h-full object-contain object-center"
+                    />
+                    {shouldShowDepressedMarker && (
+                      <VideoRiskMarkerIcon style={videoDepressedMarkerStyle} className="absolute z-20 pointer-events-none" />
+                    )}
+                  </div>
                   {isReplacingVideo && (
                     <div className="absolute inset-0 bg-black/45 flex items-center justify-center z-20">
                       <Loader2 size={30} className="text-white animate-spin" />
@@ -1691,40 +1719,37 @@ export default function App() {
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
               {/* Media Viewport Container */}
               <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative">
-                {contentType === 'multi' ? (
-                  <div
-                    ref={fixScrollContainerRef}
-                    className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
-                    onScroll={(e) => {
-                      const scrollLeft = e.currentTarget.scrollLeft;
-                      const width = e.currentTarget.clientWidth;
-                      const index = Math.round(scrollLeft / width);
-                      if (index !== currentImageIndex) {
-                        setCurrentImageIndex(index);
-                      }
-                    }}
-                  >
-                    {multiImages.map((img, idx) => (
-                      <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
-                        <img src={img} className="w-full h-full object-contain" alt={`Media ${idx + 1}`} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <img
-                    src={activeSingleImage}
-                    className="w-full h-full object-contain"
-                    alt="Media"
-                  />
-                )}
-                {shouldShowImageDepressedMarker && (
-                  <div
-                    className="absolute left-1/2 z-20 pointer-events-none"
-                    style={{ bottom: '18%', transform: `translate(calc(-50% + 154px), calc(-100% - ${depressedMarkerGapPct}% - 80px))` }}
-                  >
-                    <DepressedMarkerIcon style={{ width: `${depressedMarkerWidthPct}%`, height: 'auto' }} className="block" />
-                  </div>
-                )}
+                <div className="relative h-full max-w-full" style={{ aspectRatio: `${previewMediaAspectRatio}` }}>
+                  {contentType === 'multi' ? (
+                    <div
+                      ref={fixScrollContainerRef}
+                      className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+                      onScroll={(e) => {
+                        const scrollLeft = e.currentTarget.scrollLeft;
+                        const width = e.currentTarget.clientWidth;
+                        const index = Math.round(scrollLeft / width);
+                        if (index !== currentImageIndex) {
+                          setCurrentImageIndex(index);
+                        }
+                      }}
+                    >
+                      {multiImages.map((img, idx) => (
+                        <div key={idx} className="min-w-full h-full flex items-center justify-center snap-center">
+                          <img src={img} className="w-full h-full object-contain" alt={`Media ${idx + 1}`} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <img
+                      src={activeSingleImage}
+                      className="w-full h-full object-contain"
+                      alt="Media"
+                    />
+                  )}
+                  {shouldShowImageDepressedMarker && (
+                    <DepressedMarkerIcon style={imageDepressedMarkerStyle} className="absolute z-20 pointer-events-none" />
+                  )}
+                </div>
               </div>
 
               {/* Bottom Tool Area */}
