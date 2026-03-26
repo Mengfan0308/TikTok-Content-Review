@@ -98,6 +98,7 @@ export default function App() {
   const [selectedTimelineTrack, setSelectedTimelineTrack] = useState<TimelineTrack>(null);
   const [videoTrackFrames, setVideoTrackFrames] = useState<string[]>([]);
   const [videoFrameAspectRatio, setVideoFrameAspectRatio] = useState(16 / 9);
+  const [imagePreviewAspectRatio, setImagePreviewAspectRatio] = useState(1170 / 2532);
   const [musicWavePath, setMusicWavePath] = useState('');
   const [timelineHistory, setTimelineHistory] = useState<TimelineSnapshot[]>([]);
   const [timelineHistoryIndex, setTimelineHistoryIndex] = useState(-1);
@@ -467,6 +468,9 @@ export default function App() {
 
   const activeSingleImage = selectedOutcome ? mediaLibrary[selectedOutcome].single : defaultMultiImages[0];
   const multiImages = selectedOutcome ? mediaLibrary[selectedOutcome].multi : defaultMultiImages;
+  const activeFixImage = contentType === 'multi'
+    ? (multiImages[currentImageIndex] ?? multiImages[0] ?? activeSingleImage)
+    : activeSingleImage;
   const activeVideo = selectedOutcome ? mediaLibrary[selectedOutcome].video : "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
   const previewVideo = fixedRiskVideo ?? activeVideo;
   const isImageRiskScenario = selectedOutcome === 'risk' && (contentType === 'single' || contentType === 'multi');
@@ -476,11 +480,12 @@ export default function App() {
   const isVideoHintVisible = (activeRiskHint === 'text' && hasTextRisk) || (activeRiskHint === 'music' && hasMusicRisk);
   const previewMediaAspectRatio = 1170 / 2532;
   const previewVideoAspectRatio = videoFrameAspectRatio > 0 ? videoFrameAspectRatio : previewMediaAspectRatio;
-  const imageDepressedMarkerWidthPct = 20;
+  const previewImageAspectRatio = imagePreviewAspectRatio > 0 ? imagePreviewAspectRatio : previewMediaAspectRatio;
+  const imageDepressedMarkerWidthPct = 12;
   const imageDepressedMarkerTipXRatio = 51.3821 / 103;
   const imageDepressedMarkerTipYRatio = 116.689 / 121;
-  const depressedMarkerAnchorXPct = (738.667 / 1170) * 100;
-  const depressedMarkerAnchorYPct = (1974.563 / 2532) * 100;
+  const depressedMarkerAnchorXPct = (1050 / 1170) * 100;
+  const depressedMarkerAnchorYPct = (1550 / 2532) * 100;
   const imageDepressedMarkerStyle: React.CSSProperties = {
     left: `${depressedMarkerAnchorXPct}%`,
     top: `${depressedMarkerAnchorYPct}%`,
@@ -488,7 +493,7 @@ export default function App() {
     height: 'auto',
     transform: `translate(-${imageDepressedMarkerTipXRatio * 100}%, -${imageDepressedMarkerTipYRatio * 100}%)`,
   };
-  const videoDepressedMarkerWidthPct = 17;
+  const videoDepressedMarkerWidthPct = 10.2;
   const videoDepressedMarkerTipXRatio = 51.382 / 103;
   const videoDepressedMarkerTipYRatio = 116.689 / 132;
   const videoDepressedMarkerAnchorYPct = depressedMarkerAnchorYPct + 1.6;
@@ -804,6 +809,31 @@ export default function App() {
       isCancelled = true;
     };
   }, [contentType, currentView, activeVideo, activeSingleImage]);
+
+  useEffect(() => {
+    if (contentType === 'video' || currentView !== 'fix') return;
+
+    let isCancelled = false;
+    const image = new window.Image();
+
+    image.onload = () => {
+      if (isCancelled) return;
+      const ratio = image.naturalHeight > 0 ? image.naturalWidth / image.naturalHeight : previewMediaAspectRatio;
+      setImagePreviewAspectRatio(ratio);
+    };
+
+    image.onerror = () => {
+      if (!isCancelled) {
+        setImagePreviewAspectRatio(previewMediaAspectRatio);
+      }
+    };
+
+    image.src = activeFixImage;
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [contentType, currentView, activeFixImage, previewMediaAspectRatio]);
 
   useEffect(() => {
     if (contentType !== 'video' || currentView !== 'fix') return;
@@ -1718,8 +1748,8 @@ export default function App() {
             // Image Layout (Single/Multi)
             <div className="flex-1 flex flex-col items-center pt-4 px-4 pb-8">
               {/* Media Viewport Container */}
-              <div className="w-[76%] h-[62%] border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative">
-                <div className="relative h-full max-w-full" style={{ aspectRatio: `${previewMediaAspectRatio}` }}>
+              <div className={`${isAllFixed ? 'w-[90.71%] h-[74%]' : 'w-[80.9%] h-[66%]'} border border-white/20 rounded-[22px] overflow-hidden bg-black flex items-center justify-center shrink-0 relative`}>
+                <div className="relative w-full shrink-0" style={{ aspectRatio: `${previewImageAspectRatio}` }}>
                   {contentType === 'multi' ? (
                     <div
                       ref={fixScrollContainerRef}
@@ -1753,10 +1783,11 @@ export default function App() {
               </div>
 
               {/* Bottom Tool Area */}
-              <div className="w-full mt-6 flex flex-col flex-1">
+              <div className="w-full mt-4 flex flex-col flex-1 min-h-0">
+                <div className="mt-auto -translate-y-[10px]">
                 {/* Thumbnail Preview (center aligned, no side icons) */}
                 {contentType === 'multi' && (
-                  <div ref={fixThumbnailViewportRef} className="w-full mt-auto overflow-hidden px-2">
+                  <div ref={fixThumbnailViewportRef} className="w-full overflow-hidden px-2">
                     <div
                       ref={fixThumbnailTrackRef}
                       className="w-max min-w-full flex items-end justify-center gap-[6px] transition-transform duration-300 ease-out"
@@ -1790,7 +1821,7 @@ export default function App() {
                   </div>
                 )}
                 {contentType === 'single' && (
-                  <div className="w-full flex justify-center mt-auto">
+                  <div className="w-full flex justify-center">
                     <div className="flex items-end gap-[6px]">
                       <div className="relative flex flex-col items-center justify-end h-[64px]">
                         <motion.div layoutId="fix-active-chevron" className="absolute -top-[2px]">
@@ -1863,6 +1894,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           )}
@@ -2207,8 +2239,8 @@ export default function App() {
                 <Sparkles size={16} strokeWidth={2.3} className="absolute left-[4px] top-[4px] text-[#26BFF0]" />
                 <Sparkles size={14} strokeWidth={2.3} className="absolute left-[14px] bottom-[2px] text-[#3AE6C8]" />
               </div>
-              <h3 className="text-[16px] leading-[1.2] font-bold text-black mb-3 tracking-[0.2px]">审查通过</h3>
-              <p className="text-[14px] leading-[1.45] text-[#7B7B84] font-medium text-center">内容通过审核，继续发布即可。</p>
+              <h3 className="text-[16px] leading-[1.2] font-bold text-black mb-3 tracking-[0.2px]">恭喜您</h3>
+              <p className="text-[14px] leading-[1.45] text-[#7B7B84] font-medium text-center whitespace-nowrap">审查无风险项，请放心发布！</p>
             </div>
           </div>
         )}
