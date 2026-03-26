@@ -17,11 +17,12 @@
 
 <table>
   <tr>
-    <td width="50%" valign="top">
+    <td width="72%" valign="top">
 
 ### 🎙️ 用户访谈
 
-在深入体验 TikTok 创作链路后，我对身边的创作者朋友进行了访谈。
+在深入体验 TikTok 创作链路后，  
+我对身边的创作者朋友进行了访谈。
 
 一位拥有数万粉丝的博主朋友说：
 
@@ -29,25 +30,39 @@
 > 我们就会怀疑是不是自己的内容有什么违禁词被限流了。  
 > 希望有一个机器人之类的帮我们审查一遍违禁词。”
 
-<p>
-  <img src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="100%" />
-</p>
-
     </td>
-    <td width="50%" valign="top">
+    <td width="28%" align="right" valign="top">
+      <img src="./docs/readme-assets/images/origin-user-interview.png" alt="用户访谈截图" width="220" />
+    </td>
+  </tr>
+</table>
+
+<br />
+
+<table>
+  <tr>
+    <td width="68%" valign="top">
 
 ### 📡 行业观察
 
-2025 年春节期间，某头部博主发布了一条精心制作的长视频，但因背景音乐未通过抖音版权审核，被迫先发布 **无声版本**，完整版转至 B 站发布。这一操作意外为 B 站带来了大量跨平台流量。
-
-<p>
-  <img src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="100%" />
-</p>
+2025 年春节期间，某头部博主  
+发布了一条精心制作的长视频，  
+但因背景音乐未通过抖音版权审核，  
+被迫先发布 **无声版本**，  
+完整版转至 B 站发布。  
+这一操作意外为 B 站  
+带来了大量跨平台流量。
 
 这件事让我意识到一个结构性问题：
 
-**创作者在发布前对内容的合规状态几乎完全没有感知。所有反馈往往都发生在发布之后: 视频被删了、被限流了、数据崩了，才知道出了问题。**
+**创作者在发布前对内容的合规状态几乎完全没有感知。  
+所有反馈往往都发生在发布之后：  
+视频被删了、被限流了、数据崩了，  
+才知道出了问题。**
 
+    </td>
+    <td width="32%" align="right" valign="top">
+      <img src="./docs/readme-assets/images/origin-industry-observation.png" alt="行业观察截图" width="260" />
     </td>
   </tr>
 </table>
